@@ -9,4 +9,5 @@ wheels/
 # Virtual environments
 .venv
 
-pyfuze/pyfuze.com
+src/pyfuze/pyfuze.com
+t.py
