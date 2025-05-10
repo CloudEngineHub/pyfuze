@@ -1,0 +1,28 @@
+name: Build & Publish (uv → PyPI)
+
+on:
+    workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: bjia56/setup-cosmocc@v0.0.3
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - run: cosmocc csrc/pyfuze.c -mcosmo src/pyfuze/pyfuze.com
+      - run: find . -maxdepth 1 -type f -name 'pyfuze*' ! -name 'pyfuze.com' -delete
+        working-directory: ./src/pyfuze
+
+      - run: uv build --wheel --no-sources
+
+      - run: uv publish
