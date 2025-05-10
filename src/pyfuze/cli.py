@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import shutil
 import typing as t
+import zipfile
+import time
 from pathlib import Path
 
 import typer
@@ -117,19 +119,23 @@ def build(
         shutil.copy2(input_file, output_folder / input_file.name)
         print(f"[green]✓[/] Copied {input_file.name}")
 
-        # Package to zip file
-        zip_file = dist_dir / f"{output_folder_name}.zip"
-        if zip_file.exists():
-            zip_file.unlink()  # Delete existing zip file
-
         # Create zip file
-        shutil.make_archive(
-            str(dist_dir / output_folder_name),  # Output path (without extension)
-            "zip",  # Format
-            build_dir,  # Root directory
-            output_folder_name,  # Folder to package
-        )
-
+        zip_file = dist_dir / f"{output_folder_name}.zip"
+        zip_file.unlink(missing_ok=True)
+        with zipfile.ZipFile(zip_file, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(build_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(file_path, build_dir)
+                    if file == "pyfuze.com":
+                        info = zipfile.ZipInfo(rel_path, time.localtime())
+                        info.create_system = 3  # Unix
+                        info.external_attr = 0o100755 << 16
+                        zipf.writestr(
+                            info, Path(file_path).read_bytes(), zipfile.ZIP_DEFLATED
+                        )
+                    else:
+                        zipf.write(file_path, rel_path)
         print(f"[bold green]Successfully packaged![/] Output file: {zip_file}")
 
     except Exception as exc:
