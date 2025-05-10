@@ -1,7 +1,7 @@
 [project]
 name = "pyfuze"
 version = "0.2.0"
-description = "Add your description here"
+description = "pyfuze makes your python script actually run anywhere"
 readme = "README.md"
 authors = [
     { name = "Tanix", email = "tanixlu@foxmail.com" }
