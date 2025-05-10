@@ -91,18 +91,18 @@ def build(
         # Create output directory
         output_folder.mkdir()
 
-        # 1. Copy pyfuze.com
+        # Copy pyfuze.com
         pyfuze_com_src = Path(__file__).parent / "pyfuze.com"
         pyfuze_com_dst = output_folder / "pyfuze.com"
         shutil.copy2(pyfuze_com_src, pyfuze_com_dst)
         print(f"[green]✓[/] Copied pyfuze.com")
 
-        # 2. Create .python-version file
+        # Create .python-version file
         with open(output_folder / ".python-version", "w") as f:
             f.write(python_version)
         print(f"[green]✓[/] Created .python-version with {python_version}")
 
-        # 3. Create requirements.txt file
+        # Create requirements.txt file
         if requirements:
             req_list = [req.strip() for req in requirements.split(",")]
             with open(output_folder / "requirements.txt", "w") as f:
@@ -113,11 +113,11 @@ def build(
             (output_folder / "requirements.txt").touch()
             print(f"[green]✓[/] Created empty requirements.txt")
 
-        # 4. Copy Python script
+        # Copy Python script
         shutil.copy2(input_file, output_folder / input_file.name)
         print(f"[green]✓[/] Copied {input_file.name}")
 
-        # 5. Package to zip file
+        # Package to zip file
         zip_file = dist_dir / f"{output_folder_name}.zip"
         if zip_file.exists():
             zip_file.unlink()  # Delete existing zip file
