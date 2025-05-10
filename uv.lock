@@ -1,6 +1,10 @@
 version = 1
 revision = 2
 requires-python = ">=3.8"
+resolution-markers = [
+    "python_full_version >= '3.9'",
+    "python_full_version < '3.9'",
+]
 
 [[package]]
 name = "click"
@@ -56,7 +60,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "rich", specifier = ">=14.0.0" },
-    { name = "typer", specifier = ">=0.9.0" },
+    { name = "typer", specifier = ">=0.15.3" },
 ]
 
 [[package]]
