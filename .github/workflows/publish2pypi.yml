@@ -1,11 +1,10 @@
-name: Build & Publish (uv → PyPI)
-
 on:
-    workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    environment: pypi
     permissions:
       id-token: write
 
