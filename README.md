@@ -1,7 +1,6 @@
 # pyfuze
 
-[![Static Badge](https://img.shields.io/badge/GitHub-5c5c5c)
-](https://github.com/TanixLu/pyfuze) [![PyPI - Version](https://img.shields.io/pypi/v/pyfuze)](https://pypi.org/project/pyfuze/)
+[![GitHub](https://img.shields.io/badge/GitHub-5c5c5c)](https://github.com/TanixLu/pyfuze) [![PyPI - Version](https://img.shields.io/pypi/v/pyfuze)](https://pypi.org/project/pyfuze/)
 
 ## description
 
