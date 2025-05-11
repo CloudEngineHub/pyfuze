@@ -1,5 +1,7 @@
 # pyfuze
 
+[![PyPI - Version](https://img.shields.io/pypi/v/pyfuze)](https://pypi.org/project/pyfuze/)
+
 ## description
 
 pyfuze makes your python script actually run anywhere.
