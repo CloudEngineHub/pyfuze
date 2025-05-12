@@ -16,7 +16,7 @@ pip install pyfuze
 ## usage
 
 ```bash
-pyfuze build t.py --python 3.8 --reqs requests,numpy
+pyfuze t.py --python 3.8 --reqs requests,numpy
 ```
 
 This command will generate `dist/t.zip` which contains:
