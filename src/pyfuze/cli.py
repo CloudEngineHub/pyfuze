@@ -4,7 +4,6 @@ import os
 import shutil
 import time
 import zipfile
-from typing import Optional
 from pathlib import Path
 from traceback import print_exc
 
@@ -13,39 +12,7 @@ import click
 from . import __version__
 
 
-@click.group(
-    invoke_without_command=True,
-    context_settings={"help_option_names": ["-h", "--help"]},
-)
-@click.option(
-    "--version",
-    "-v",
-    is_flag=True,
-    is_eager=True,
-    help="Show version and exit",
-)
-@click.option(
-    "--debug",
-    "-d",
-    is_flag=True,
-    help="Enable debug logging",
-)
-@click.pass_context
-def cli(ctx: click.Context, version: bool, debug: bool) -> None:
-    """pyfuze — package Python scripts with dependencies."""
-    if version:
-        click.echo(f"pyfuze v{__version__}")
-        ctx.exit()
-
-    if debug:
-        os.environ["PYFUZE_DEBUG"] = "1"
-
-    if ctx.invoked_subcommand is None:
-        click.echo(ctx.get_help())
-        ctx.exit()
-
-
-@cli.command()
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument(
     "python_file",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
@@ -61,12 +28,23 @@ def cli(ctx: click.Context, version: bool, debug: bool) -> None:
     "requirements",
     help="Required packages (comma-separated)",
 )
-def build(
+@click.option(
+    "--debug",
+    "-d",
+    is_flag=True,
+    help="Enable debug logging",
+)
+@click.version_option(__version__, "-v", "--version", prog_name="pyfuze")
+def cli(
     python_file: Path,
     python_version: str,
-    requirements: Optional[str],
+    requirements: str | None,
+    debug: bool,
 ) -> None:
-    """Package a Python script into a distributable bundle."""
+    """pyfuze — package Python scripts with dependencies."""
+    if debug:
+        os.environ["PYFUZE_DEBUG"] = "1"
+
     try:
         if python_file.suffix != ".py":
             click.secho("Error: the input file is not a .py file", fg="red", bold=True)
@@ -80,13 +58,16 @@ def build(
         dist_dir = Path("dist")
         dist_dir.mkdir(parents=True, exist_ok=True)
 
+        # copy the stub launcher
         src_com = Path(__file__).parent / "pyfuze.com"
         shutil.copy2(src_com, output_folder / "pyfuze.com")
         click.secho("✓ copied pyfuze.com", fg="green")
 
+        # write .python-version
         (output_folder / ".python-version").write_text(python_version)
         click.secho(f"✓ wrote .python-version ({python_version})", fg="green")
 
+        # write requirements.txt
         if requirements:
             req_list = [r.strip() for r in requirements.split(",")]
             (output_folder / "requirements.txt").write_text("\n".join(req_list))
@@ -97,9 +78,11 @@ def build(
             (output_folder / "requirements.txt").touch()
             click.secho("✓ created empty requirements.txt", fg="green")
 
+        # copy the user script
         shutil.copy2(python_file, output_folder / python_file.name)
         click.secho(f"✓ copied {python_file.name}", fg="green")
 
+        # build the zip
         zip_path = dist_dir / f"{python_file.stem}.zip"
         zip_path.unlink(missing_ok=True)
 
@@ -123,19 +106,8 @@ def build(
             print_exc()
             raise
         click.secho(f"Error: {exc}", fg="red", bold=True)
-        raise click.Abort()
-
-
-def app() -> None:
-    """Entry point."""
-    try:
-        cli()
-    except click.ClickException as err:
-        raise SystemExit(err.exit_code) from None
-    except Exception:
-        print_exc()
         raise SystemExit(1)
 
 
 if __name__ == "__main__":
-    app()
+    cli()
