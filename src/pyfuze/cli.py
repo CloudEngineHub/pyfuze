@@ -20,8 +20,9 @@ from . import __version__
 @click.option(
     "--python",
     "python_version",
-    required=True,
-    help="Target Python version (e.g. 3.11)",
+    default="3.8",
+    show_default=True,
+    help="Target Python version",
 )
 @click.option(
     "--reqs",
