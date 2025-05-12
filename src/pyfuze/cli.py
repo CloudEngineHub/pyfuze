@@ -6,17 +6,18 @@ import typing as t
 import zipfile
 import time
 from pathlib import Path
+from traceback import print_exc
 
 import typer
-from rich import print
 
 from . import __version__
 
 # ---------- Typer instance: one global instance ----------------------
 _app = typer.Typer(
-    add_completion=False,  # Manually manage completion
-    rich_markup_mode="rich",  # Support [bold red] markup in help
+    add_completion=False,
+    rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help"]},
+    no_args_is_help=True,
 )
 
 
@@ -140,9 +141,7 @@ def build(
 
     except Exception as exc:
         if os.environ.get("PYFUZE_DEBUG") == "1":
-            from rich.traceback import install
-
-            install(show_locals=True)
+            print_exc()
             raise
         print(f"[bold red]Error:[/] {str(exc)}")
         raise typer.Exit(1)
@@ -154,9 +153,7 @@ def app() -> None:
     try:
         _app()
     except Exception as exc:
-        from rich.traceback import install
-
-        install(show_locals=False)
+        print_exc()
         raise SystemExit(1) from exc
 
 
