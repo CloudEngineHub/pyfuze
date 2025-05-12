@@ -3,9 +3,8 @@
 #include <string.h>
 #include <dirent.h>
 #include <unistd.h>
-#include <sys/utsname.h>
 #include <spawn.h>
-#include <sys/wait.h>
+#include <libc/dce.h>
 
 extern char **environ;
 
@@ -50,15 +49,16 @@ int run_command(const char *prog, char *const argv[]) {
     return 1;
 }
 
-int main() {
-    struct utsname uts;
-    uname(&uts);
-    int is_windows = strcmp(uts.sysname, "Windows") == 0;
-    int is_unix = strcmp(uts.sysname, "Linux") == 0 || strcmp(uts.sysname, "Darwin") == 0;
-    if (!is_windows && !is_unix) {
-        fprintf(stderr, "Unsupported OS: %s\n", uts.sysname);
-        return 1;
+int main(int argc, char *argv[]) {
+    // cd to the directory of the executable based on argv[0]
+    char *executable_path = argv[0];
+    char *last_slash = strrchr(executable_path, '/');
+    if (last_slash) {
+        *last_slash = '\0';
+        chdir(executable_path);
     }
+
+    int is_windows = IsWindows();
 
     char cwd[PATH_MAX];
     getcwd(cwd, sizeof(cwd));
