@@ -15,7 +15,7 @@ from . import __version__
 # ---------- Typer instance: one global instance ----------------------
 _app = typer.Typer(
     add_completion=False,
-    rich_markup_mode="rich",
+    rich_markup_mode=None,
     context_settings={"help_option_names": ["-h", "--help"]},
     no_args_is_help=True,
 )
