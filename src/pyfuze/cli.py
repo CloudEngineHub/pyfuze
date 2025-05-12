@@ -97,7 +97,7 @@ def build(
         pyfuze_com_src = Path(__file__).parent / "pyfuze.com"
         pyfuze_com_dst = output_folder / "pyfuze.com"
         shutil.copy2(pyfuze_com_src, pyfuze_com_dst)
-        print(f"[green]✓[/] Copied pyfuze.com")
+        print("[green]✓[/] Copied pyfuze.com")
 
         # Create .python-version file
         with open(output_folder / ".python-version", "w") as f:
@@ -113,7 +113,7 @@ def build(
         else:
             # Create empty requirements.txt file
             (output_folder / "requirements.txt").touch()
-            print(f"[green]✓[/] Created empty requirements.txt")
+            print("[green]✓[/] Created empty requirements.txt")
 
         # Copy Python script
         shutil.copy2(input_file, output_folder / input_file.name)

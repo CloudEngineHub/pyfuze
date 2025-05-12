@@ -1,6 +1,6 @@
 [project]
 name = "pyfuze"
-version = "0.2.0"
+version = "0.2.1"
 description = "pyfuze makes your python script actually run anywhere"
 readme = "README.md"
 authors = [
@@ -8,7 +8,6 @@ authors = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    "rich>=14.0.0",
     "typer>=0.15.3",
 ]
 
@@ -18,7 +17,3 @@ pyfuze = "pyfuze.cli:app"
 [build-system]
 requires = ["uv_build>=0.7.3,<0.8"]
 build-backend = "uv_build"
-
-[[tool.uv.index]]
-url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
-default = true
