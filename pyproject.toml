@@ -1,6 +1,6 @@
 [project]
 name = "pyfuze"
-version = "0.3.3"
+version = "0.4.0"
 description = "pyfuze makes your python script actually run anywhere"
 readme = "README.md"
 authors = [
