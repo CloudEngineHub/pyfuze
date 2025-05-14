@@ -12,7 +12,9 @@ import click
 from . import __version__
 
 
-@click.command(context_settings={"help_option_names": ["-h", "--help"]})
+@click.command(
+    context_settings={"help_option_names": ["-h", "--help"], "show_default": True}
+)
 @click.argument(
     "python_file",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
@@ -21,13 +23,19 @@ from . import __version__
     "--python",
     "python_version",
     default="3.8",
-    show_default=True,
     help="Target Python version",
 )
 @click.option(
     "--reqs",
     "requirements",
+    default=None,
     help="Required packages (comma-separated)",
+)
+@click.option(
+    "--win-gui",
+    is_flag=True,
+    default=False,
+    help="Create WIN_GUI file for Windows GUI application",
 )
 @click.option(
     "--debug",
@@ -40,6 +48,7 @@ def cli(
     python_file: Path,
     python_version: str,
     requirements: str | None,
+    win_gui: bool,
     debug: bool,
 ) -> None:
     """pyfuze — package Python scripts with dependencies."""
@@ -78,6 +87,11 @@ def cli(
         else:
             (output_folder / "requirements.txt").touch()
             click.secho("✓ created empty requirements.txt", fg="green")
+
+        # create WIN_GUI file if requested
+        if win_gui:
+            (output_folder / "WIN_GUI").touch()
+            click.secho("✓ created WIN_GUI file", fg="green")
 
         # copy the user script
         shutil.copy2(python_file, output_folder / python_file.name)
