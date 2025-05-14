@@ -28,13 +28,11 @@ from . import __version__
 @click.option(
     "--reqs",
     "requirements",
-    default=None,
     help="Required packages (comma-separated)",
 )
 @click.option(
     "--win-gui",
     is_flag=True,
-    default=False,
     help="Create WIN_GUI file for Windows GUI application",
 )
 @click.option(
@@ -102,7 +100,7 @@ def cli(
         zip_path.unlink(missing_ok=True)
 
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for root, _, files in os.walk(build_dir):
+            for root, _, files in os.walk(output_folder):
                 for name in files:
                     file_path = Path(root) / name
                     rel_path = file_path.relative_to(build_dir)
