@@ -18,7 +18,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
-      - run: cosmocc csrc/pyfuze.c -mcosmo -o src/pyfuze/pyfuze.com
+      - run: cosmocc csrc/{pyfuze.c,pyfuze_utils.c,pyfuze_windows.c,pyfuze_unix.c,pyfuze_config_parser.c} -mcosmo -o src/pyfuze/pyfuze.com
       - run: find . -maxdepth 1 -type f -name 'pyfuze*' ! -name 'pyfuze.com' -delete
         working-directory: ./src/pyfuze
 
