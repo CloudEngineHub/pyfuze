@@ -1,6 +1,6 @@
 [project]
 name = "pyfuze"
-version = "0.4.3"
+version = "0.5.0"
 license = { text = "MIT" }
 description = "pyfuze makes your python script actually run anywhere"
 readme = "README.md"

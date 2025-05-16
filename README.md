@@ -16,16 +16,16 @@ pip install pyfuze
 ## usage
 
 ```bash
-pyfuze ./examples/ip.py --python 3.8 --reqs requests --win-gui
+pyfuze ./examples/ip.py --reqs requests --win-gui
 ```
 
 This command will generate `dist/ip.zip` which contains:
 
 - pyfuze.com
-- .python-version ("3.8")
+- .python-version (default "3.8")
 - requirements.txt ("requests")
-- t.py
-- WIN_GUI (an empty file used as a flag)
+- src/t.py
+- config.txt (2 lines: entry=ip.py win_gui=1)
 
 `pyfuze.com` is an [actually portable executable](https://justine.lol/ape.html), so you can run it natively on Linux + Mac + Windows + FreeBSD + OpenBSD + NetBSD + BIOS on AMD64 and ARM64.
 

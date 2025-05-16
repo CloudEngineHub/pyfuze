@@ -1,4 +1,4 @@
 #pragma once
 
-void run_command_unix(char *const argv[]);
+void run_command_unix(const char * const argv[]);
 int main_unix(int argc, char *argv[]);

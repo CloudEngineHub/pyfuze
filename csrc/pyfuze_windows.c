@@ -21,12 +21,12 @@ void windows_attach_console(int alloc_console) {
     freopen("CONOUT$", "w", stderr);
 }
 
-void run_command_windows_utf16(char16_t *cmdline, int win_gui) {
+void run_command_windows_utf16(char16_t *cmdline) {
     struct NtStartupInfo si = {0};
     si.cb = sizeof(si);
     struct NtProcessInformation pi = {0};
 
-    uint32_t creation_flags = win_gui ? kNtCreateNoWindow : 0;
+    uint32_t creation_flags = config_win_gui ? kNtCreateNoWindow : 0;
 
     if (!CreateProcess(
         NULL,  // No module name (use command line)
@@ -50,37 +50,35 @@ void run_command_windows_utf16(char16_t *cmdline, int win_gui) {
     CloseHandle(pi.hThread);
 }
 
-void run_command_windows(char *cmdline, int win_gui) {
+void run_command_windows(char *cmdline) {
     char16_t *cmdline_utf16 = utf8to16(cmdline, -1, 0);
-    run_command_windows_utf16(cmdline_utf16, win_gui);
+    run_command_windows_utf16(cmdline_utf16);
     free(cmdline_utf16);
 }
 
 int main_windows(int argc, char *argv[]) {
-    int win_gui = path_exists("./WIN_GUI");
-    int alloc_console = !win_gui;
-    windows_attach_console(alloc_console);
+    windows_attach_console(!config_win_gui);
 
     if (!path_exists(".\\uv\\uv.exe")) {
         printf(".\\uv\\uv.exe not found, installing...\n");
         SetEnvironmentVariable(u"UV_UNMANAGED_INSTALL", u"uv");
         SetEnvironmentVariable(u"PSModulePath", u"");
         SetEnvironmentVariable(u"PSMODULEPATH", u"");
-        run_command_windows("\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -c \"irm https://astral.sh/uv/install.ps1 | iex\"", win_gui);
+        run_command_windows("\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -c \"irm https://astral.sh/uv/install.ps1 | iex\"");
     }
 
     if (!path_exists("pyproject.toml")) {
         printf("initializing new project with uv...\n");
-        run_command_windows(".\\uv\\uv.exe init --bare --no-workspace", win_gui);
+        run_command_windows(".\\uv\\uv.exe init --bare --no-workspace");
     }
 
-    const char *python_folder_name = find_python_folder_name();
-    if (!python_folder_name) {
+    find_python_folder_name();
+    if (python_folder_name[0] == '\0') {
         printf("python not found, installing to .\\python ...\n");
-        run_command_windows(".\\uv\\uv.exe python install --install-dir python", win_gui);
+        run_command_windows(".\\uv\\uv.exe python install --install-dir python");
     }
-    python_folder_name = find_python_folder_name();
-    if (!python_folder_name) {
+    find_python_folder_name();
+    if (python_folder_name[0] == '\0') {
         printf("ERROR: python installation failed\n");
         exit(1);
     }
@@ -89,17 +87,28 @@ int main_windows(int argc, char *argv[]) {
 
     char cmdline[8192];
 
-    if (path_exists("requirements.txt")) {
-        snprintf(cmdline, sizeof(cmdline), ".\\uv\\uv.exe pip install -r requirements.txt --python %s --quiet", python_path);
-        run_command_windows(cmdline, win_gui);
+
+    if (!path_exists(".venv")) {
+        printf("creating virtual environment...\n");
+        if (path_exists("requirements.txt")) {
+            snprintf(cmdline, sizeof(cmdline), ".\\uv\\uv.exe add -r requirements.txt --python %s", python_path);
+            run_command_windows(cmdline);
+        } else {
+            snprintf(cmdline, sizeof(cmdline), ".\\uv\\uv.exe venv --python %s", python_path);
+            run_command_windows(cmdline);
+        }
     }
 
-    if (win_gui) {
-        snprintf(cmdline, sizeof(cmdline), ".\\uv\\uv.exe run %s --python %s --gui-script", script_name, python_path);
-    } else {
-        snprintf(cmdline, sizeof(cmdline), ".\\uv\\uv.exe run %s --python %s", script_name, python_path);
+    if (path_exists("requirements.txt")) {
+        run_command_windows(".\\uv\\uv.exe pip install -r requirements.txt --quiet");
     }
-    run_command_windows(cmdline, win_gui);
+
+    if (config_win_gui) {
+        snprintf(cmdline, sizeof(cmdline), ".\\uv\\uv.exe run --project . --directory src --gui-script %s", config_entry);
+    } else {
+        snprintf(cmdline, sizeof(cmdline), ".\\uv\\uv.exe run --project . --directory src --script %s", config_entry);
+    }
+    run_command_windows(cmdline);
 
     return 0;
 }

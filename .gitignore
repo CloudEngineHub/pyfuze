@@ -10,3 +10,4 @@ wheels/
 .venv
 
 src/pyfuze/pyfuze.com
+.vscode/

@@ -24,7 +24,6 @@ PERFORMANCE OF THIS SOFTWARE.
 #include "stdio.h"
 #include "string.h"
 #include "unistd.h"
-
 #include "libc/dce.h"
 
 #include "pyfuze_utils.h"
@@ -39,10 +38,7 @@ void GetMessage() {}
 
 int main(int argc, char *argv[]) {
     chdir_to_executable_folder(argv);
-    getcwd(cwd, sizeof(cwd));
-    project_name = strrchr(cwd, '/') + 1;
-    snprintf(script_name, sizeof(script_name), "%s.py", project_name);
-
+    read_config();
     if (IsWindows()) {
         return main_windows(argc, argv);
     } else {
