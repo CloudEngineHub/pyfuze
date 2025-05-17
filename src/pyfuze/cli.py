@@ -62,6 +62,7 @@ def cli(
 
     try:
         build_dir = Path("build")
+        python_project = python_project.resolve()
         output_folder = build_dir / python_project.stem
         shutil.rmtree(output_folder, ignore_errors=True)
         output_folder.mkdir(parents=True, exist_ok=True)
