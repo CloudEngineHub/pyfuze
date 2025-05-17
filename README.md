@@ -5,7 +5,7 @@
 
 ## description
 
-pyfuze makes your python script actually run anywhere.
+pyfuze makes your Python project run anywhere.
 
 ## install
 
@@ -24,16 +24,16 @@ This command will generate `dist/ip.zip` which contains:
 - pyfuze.com
 - .python-version (default "3.8")
 - requirements.txt ("requests")
-- src/t.py
+- src/ip.py
 - config.txt (2 lines: entry=ip.py win_gui=1)
 
-`pyfuze.com` is an [actually portable executable](https://justine.lol/ape.html), so you can run it natively on Linux + Mac + Windows + FreeBSD + OpenBSD + NetBSD + BIOS on AMD64 and ARM64.
+`pyfuze.com` is an [Actually Portable Executable](https://justine.lol/ape.html), capable of running natively on Linux, macOS, Windows, FreeBSD, OpenBSD, NetBSD, and BIOS across both AMD64 and ARM64 architectures.
 
-Notice: uv mainly supports macOS (Apple Silicon + x86_64), Linux (x86_64) and Windows (x86_64).
+Note: uv primarily supports macOS (both Apple Silicon and x86_64), Linux (x86_64), and Windows (x86_64).
 
-Executing `pyfuze.com` will result in:
+Executing `pyfuze.com` will do the following:
 
 - install uv in `./uv` folder
 - install python in `./python` (version: `.python-version`)
 - install dependencies in `requirements.txt`
-- run python script
+- run the Python project
