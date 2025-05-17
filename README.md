@@ -29,11 +29,11 @@ This command will generate `dist/ip.zip` which contains:
 
 `pyfuze.com` is an [Actually Portable Executable](https://justine.lol/ape.html), capable of running natively on Linux, macOS, Windows, FreeBSD, OpenBSD, NetBSD, and BIOS across both AMD64 and ARM64 architectures.
 
-Note: uv primarily supports macOS (both Apple Silicon and x86_64), Linux (x86_64), and Windows (x86_64).
-
 Executing `pyfuze.com` will do the following:
 
-- install uv in `./uv` folder
+- install [uv](https://github.com/astral-sh/uv) in `./uv` folder
 - install python in `./python` (version: `.python-version`)
 - install dependencies in `requirements.txt`
 - run the Python project
+
+Note: uv primarily supports macOS (both Apple Silicon and x86_64), Linux (x86_64), and Windows (x86_64).
