@@ -20,26 +20,36 @@ from . import __version__
 @click.option(
     "--python",
     "python_version",
-    default="3.8",
-    show_default=True,
-    help="Target Python version",
+    help="Add .python-version file",
 )
 @click.option(
     "--reqs",
     "requirements",
-    help="Required packages (comma-separated)",
+    help="Add requirements.txt file (input comma-separated string OR requirements.txt path)",
+)
+@click.option(
+    "--pyproject",
+    "pyproject",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Add pyproject.toml file",
+)
+@click.option(
+    "--uv-lock",
+    "uv_lock",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Add uv.lock file",
 )
 @click.option(
     "--entry",
     "entry",
     default="main.py",
     show_default=True,
-    help="Entry point (only for folder project)",
+    help="Entry point (only works when PYTHON_PROJECT is a folder)",
 )
 @click.option(
     "--win-gui",
     is_flag=True,
-    help="Create WIN_GUI file for Windows GUI application",
+    help="Enable Windows GUI mode (which hides the console window)",
 )
 @click.option(
     "--debug",
@@ -50,8 +60,10 @@ from . import __version__
 @click.version_option(__version__, "-v", "--version", prog_name="pyfuze")
 def cli(
     python_project: Path,
-    python_version: str,
+    python_version: str | None,
     requirements: str | None,
+    pyproject: Path | None,
+    uv_lock: Path | None,
     entry: str,
     win_gui: bool,
     debug: bool,
@@ -76,16 +88,43 @@ def cli(
         click.secho("✓ copied pyfuze.com", fg="green")
 
         # write .python-version
-        (output_folder / ".python-version").write_text(python_version)
-        click.secho(f"✓ wrote .python-version ({python_version})", fg="green")
+        if python_version:
+            (output_folder / ".python-version").write_text(python_version)
+            click.secho(f"✓ wrote .python-version ({python_version})", fg="green")
 
         # write requirements.txt
         if requirements:
-            req_list = [r.strip() for r in requirements.split(",")]
-            (output_folder / "requirements.txt").write_text("\n".join(req_list))
-            click.secho(
-                f"✓ wrote requirements.txt ({len(req_list)} packages)", fg="green"
-            )
+            req_path = Path(requirements)
+            if req_path.is_file():
+                shutil.copy2(req_path, output_folder / "requirements.txt")
+                if req_path.name != "requirements.txt":
+                    click.secho(
+                        f"✓ copied {req_path.name} to requirements.txt", fg="green"
+                    )
+                else:
+                    click.secho("✓ copied requirements.txt", fg="green")
+            else:
+                req_list = [r.strip() for r in requirements.split(",")]
+                (output_folder / "requirements.txt").write_text("\n".join(req_list))
+                click.secho(
+                    f"✓ wrote requirements.txt ({len(req_list)} packages)", fg="green"
+                )
+
+        # write pyproject.toml
+        if pyproject:
+            shutil.copy2(pyproject, output_folder / "pyproject.toml")
+            if pyproject.name != "pyproject.toml":
+                click.secho(f"✓ copied {pyproject.name} to pyproject.toml", fg="green")
+            else:
+                click.secho("✓ copied pyproject.toml", fg="green")
+
+        # copy uv.lock file
+        if uv_lock:
+            shutil.copy2(uv_lock, output_folder / "uv.lock")
+            if uv_lock.name != "uv.lock":
+                click.secho(f"✓ copied {uv_lock.name} to uv.lock", fg="green")
+            else:
+                click.secho("✓ copied uv.lock", fg="green")
 
         # create config.txt file
         if python_project.is_file():

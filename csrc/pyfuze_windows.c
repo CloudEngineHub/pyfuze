@@ -59,6 +59,7 @@ void run_command_windows(char *cmdline) {
 int main_windows(int argc, char *argv[]) {
     windows_attach_console(!config_win_gui);
 
+    // install uv
     if (!path_exists(".\\uv\\uv.exe")) {
         printf(".\\uv\\uv.exe not found, installing...\n");
         SetEnvironmentVariable(u"UV_UNMANAGED_INSTALL", u"uv");
@@ -67,11 +68,7 @@ int main_windows(int argc, char *argv[]) {
         run_command_windows("\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -c \"irm https://astral.sh/uv/install.ps1 | iex\"");
     }
 
-    if (!path_exists("pyproject.toml")) {
-        printf("initializing new project with uv...\n");
-        run_command_windows(".\\uv\\uv.exe init --bare --no-workspace");
-    }
-
+    // install python
     find_python_folder_name();
     if (python_folder_name[0] == '\0') {
         printf("python not found, installing to .\\python ...\n");
@@ -87,22 +84,26 @@ int main_windows(int argc, char *argv[]) {
 
     char cmdline[8192];
 
-
-    if (!path_exists(".venv")) {
-        printf("creating virtual environment...\n");
+    // make sure pyproject.toml exists with dependencies
+    if (!path_exists("pyproject.toml")) {
+        printf("initializing new project with uv...\n");
+        run_command_windows(".\\uv\\uv.exe init --bare --no-workspace");
         if (path_exists("requirements.txt")) {
+            printf("add dependencies from requirements.txt...\n");
             snprintf(cmdline, sizeof(cmdline), ".\\uv\\uv.exe add -r requirements.txt --python %s", python_path);
-            run_command_windows(cmdline);
-        } else {
-            snprintf(cmdline, sizeof(cmdline), ".\\uv\\uv.exe venv --python %s", python_path);
             run_command_windows(cmdline);
         }
     }
 
-    if (path_exists("requirements.txt")) {
-        run_command_windows(".\\uv\\uv.exe pip install -r requirements.txt --quiet");
+    // uv sync
+    if (path_exists("uv.lock")) {
+        snprintf(cmdline, sizeof(cmdline), ".\\uv\\uv.exe sync --frozen --python %s", python_path);
+    } else {
+        snprintf(cmdline, sizeof(cmdline), ".\\uv\\uv.exe sync --python %s", python_path);
     }
+    run_command_windows(cmdline);
 
+    // uv run
     if (config_win_gui) {
         snprintf(cmdline, sizeof(cmdline), ".\\uv\\uv.exe run --project . --directory src --gui-script %s", config_entry);
     } else {

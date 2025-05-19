@@ -28,6 +28,7 @@ void run_command_unix(const char * const argv[]) {
 int main_unix(int argc, char *argv[]) {
     const char *uv_binary = "./uv/uv";
 
+    // install uv
     if (!path_exists(uv_binary)) {
         printf("%s not found, installing...\n", uv_binary);
         setenv("UV_UNMANAGED_INSTALL", "uv", 1);
@@ -36,11 +37,7 @@ int main_unix(int argc, char *argv[]) {
         });
     }
 
-    if (!path_exists("pyproject.toml")) {
-        printf("initializing new project with uv...\n");
-        run_command_unix((const char *const[]){uv_binary, "init", "--bare", "--no-workspace", NULL});
-    }
-
+    // install python
     find_python_folder_name();
     if (python_folder_name[0] == '\0') {
         printf("python not found, installing to ./python ...\n");
@@ -54,19 +51,24 @@ int main_unix(int argc, char *argv[]) {
     char python_path[PATH_MAX];
     snprintf(python_path, sizeof(python_path), "./python/%s", python_folder_name);
 
-    if (!path_exists(".venv")) {
-        printf("creating virtual environment...\n");
+    // make sure pyproject.toml exists with dependencies
+    if (!path_exists("pyproject.toml")) {
+        printf("initializing new project with uv...\n");
+        run_command_unix((const char *const[]){uv_binary, "init", "--bare", "--no-workspace", NULL});
         if (path_exists("requirements.txt")) {
+            printf("add dependencies from requirements.txt...\n");
             run_command_unix((const char *const[]){uv_binary, "add", "-r", "requirements.txt", "--python", python_path, NULL});
-        } else {
-            run_command_unix((const char *const[]){uv_binary, "venv", "--python", python_path, NULL});
         }
     }
 
-    if (path_exists("requirements.txt")) {
-        run_command_unix((const char *const[]){uv_binary, "pip", "install", "-r", "requirements.txt", "--python", python_path, "--quiet", NULL});
+    // uv sync
+    if (path_exists("uv.lock")) {
+        run_command_unix((const char *const[]){uv_binary, "sync", "--frozen", "--python", python_path, NULL});
+    } else {
+        run_command_unix((const char *const[]){uv_binary, "sync", "--python", python_path, NULL});
     }
 
+    // uv run
     run_command_unix((const char *const[]){uv_binary, "run", "--project", ".", "--directory", "src", "--script", config_entry, NULL});
 
     return 0;
