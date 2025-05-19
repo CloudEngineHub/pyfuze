@@ -47,9 +47,17 @@ int main_unix(int argc, char *argv[]) {
     // install uv
     if (!path_exists(uv_binary)) {
         printf("%s not found, installing...\n", uv_binary);
-        run_command_unix((const char *const[]){
-            "sh", "-c", "curl -LsSf https://astral.sh/uv/install.sh | sh", NULL
-        });
+        char cmdline[8192];
+        if (path_exists(config_uv_install_script_unix)) {
+            run_command_unix((const char *const[]){"sh", config_uv_install_script_unix, NULL});
+        } else {
+            snprintf(cmdline, sizeof(cmdline), "curl -LsSf %s | sh", config_uv_install_script_unix);
+            run_command_unix((const char *const[]){"sh", "-c", cmdline, NULL});
+        }
+        if (!path_exists(uv_binary)) {
+            printf("ERROR: uv installation failed\n");
+            exit(1);
+        }
     }
 
     // install python

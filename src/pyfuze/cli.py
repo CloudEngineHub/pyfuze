@@ -63,6 +63,20 @@ from . import __version__
     help="Hide the console window on Windows",
 )
 @click.option(
+    "--uv-install-script-windows",
+    "uv_install_script_windows",
+    default="https://astral.sh/uv/install.ps1",
+    show_default=True,
+    help="UV installation script URI for Windows",
+)
+@click.option(
+    "--uv-install-script-unix",
+    "uv_install_script_unix",
+    default="https://astral.sh/uv/install.sh",
+    show_default=True,
+    help="UV installation script URI for Unix",
+)
+@click.option(
     "--debug",
     "-d",
     is_flag=True,
@@ -79,6 +93,8 @@ def cli(
     include: tuple[str, ...],
     env: tuple[str, ...],
     win_gui: bool,
+    uv_install_script_windows: str,
+    uv_install_script_unix: str,
     debug: bool,
 ) -> None:
     """pyfuze — package Python scripts with dependencies."""
@@ -143,7 +159,11 @@ def cli(
         if python_project.is_file():
             entry = python_project.name
         win_gui_num = 1 if win_gui else 0
-        text = f"entry={entry}\nwin_gui={win_gui_num}\n"
+        text = f"""entry={entry}
+win_gui={win_gui_num}
+uv_install_script_windows={uv_install_script_windows}
+uv_install_script_unix={uv_install_script_unix}
+"""
         if env:
             for e in env:
                 key, value = e.split("=", 1)

@@ -11,8 +11,11 @@
 
 char python_folder_name[PATH_MAX] = {0};
 
-int config_win_gui = 0;
+char config_uv_install_script_windows[PATH_MAX] = {0};
+char config_uv_install_script_unix[PATH_MAX] = {0};
 char config_entry[PATH_MAX] = {0};
+int config_win_gui = 0;
+
 
 Config* config = NULL;
 
@@ -49,6 +52,8 @@ void read_config() {
         exit(1);
     }
 
-    config_win_gui = atoi(get_config_value(config, "win_gui"));
+    strcpy(config_uv_install_script_windows, get_config_value(config, "uv_install_script_windows"));
+    strcpy(config_uv_install_script_unix, get_config_value(config, "uv_install_script_unix"));
     strcpy(config_entry, get_config_value(config, "entry"));
+    config_win_gui = atoi(get_config_value(config, "win_gui"));
 }

@@ -6,8 +6,10 @@
 
 extern char python_folder_name[PATH_MAX];
 
-extern int config_win_gui;
+extern char config_uv_install_script_windows[PATH_MAX];
+extern char config_uv_install_script_unix[PATH_MAX];
 extern char config_entry[PATH_MAX];
+extern int config_win_gui;
 
 extern Config* config;
 

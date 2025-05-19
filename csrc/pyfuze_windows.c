@@ -80,10 +80,21 @@ int main_windows(int argc, char *argv[]) {
     SetEnvironmentVariable(u"PSMODULEPATH", u"");
     set_config_env_windows();
 
+    char cmdline[8192];
+
     // install uv
     if (!path_exists(".\\uv\\uv.exe")) {
         printf(".\\uv\\uv.exe not found, installing...\n");
-        run_command_windows("\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -c \"irm https://astral.sh/uv/install.ps1 | iex\"");
+        if (path_exists(config_uv_install_script_windows)) {
+            snprintf(cmdline, sizeof(cmdline), "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File \"%s\"", config_uv_install_script_windows);
+        } else {
+            snprintf(cmdline, sizeof(cmdline), "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -c \"irm %s | iex\"", config_uv_install_script_windows);
+        }
+        run_command_windows(cmdline);
+        if (!path_exists(".\\uv\\uv.exe")) {
+            printf("ERROR: uv installation failed\n");
+            exit(1);
+        }
     }
 
     // install python
@@ -99,8 +110,6 @@ int main_windows(int argc, char *argv[]) {
     }
     char python_path[PATH_MAX];
     snprintf(python_path, sizeof(python_path), ".\\python\\%s", python_folder_name);
-
-    char cmdline[8192];
 
     // make sure pyproject.toml exists with dependencies
     if (!path_exists("pyproject.toml")) {
