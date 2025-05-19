@@ -21,16 +21,27 @@ Usage: pyfuze [OPTIONS] PYTHON_PROJECT
   pyfuze — package Python scripts with dependencies.
 
 Options:
-  --python TEXT     Add .python-version file
-  --reqs TEXT       Add requirements.txt file (input comma-separated string OR requirements.txt path)
-  --pyproject FILE  Add pyproject.toml file
-  --uv-lock FILE    Add uv.lock file
-  --entry TEXT      Entry point (only works when PYTHON_PROJECT is a folder) [default: main.py]
-  --include TEXT    Include additional file or folder (source[:destination], this option is repeatable)
-  --win-gui         Enable Windows GUI mode (which hides the console window)
-  -d, --debug       Enable debug logging
-  -v, --version     Show the version and exit.
-  -h, --help        Show this message and exit.
+  --python TEXT                   Add .python-version file
+  --reqs TEXT                     Add requirements.txt file (input comma-
+                                  separated string OR requirements.txt path)
+  --pyproject FILE                Add pyproject.toml file
+  --uv-lock FILE                  Add uv.lock file
+  --entry TEXT                    Entry python file
+  --include TEXT                  Include additional file or folder
+                                  (source[:destination]) (repeatable)
+  --exclude TEXT                  Exclude path relative to the project root
+                                  (repeatable)
+  --env TEXT                      Add environment variables (key=value)
+                                  (repeatable)
+  --win-gui                       Hide the console window on Windows
+  --uv-install-script-windows TEXT
+                                  UV installation script URI for Windows
+                                  [default: https://astral.sh/uv/install.ps1]
+  --uv-install-script-unix TEXT   UV installation script URI for Unix
+                                  [default: https://astral.sh/uv/install.sh]
+  -d, --debug                     Enable debug logging
+  -v, --version                   Show the version and exit.
+  -h, --help                      Show this message and exit.
 ```
 
 ## example
