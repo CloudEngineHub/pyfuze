@@ -43,19 +43,24 @@ from . import __version__
     "--entry",
     "entry",
     default="main.py",
-    show_default=True,
-    help="Entry point (only works when PYTHON_PROJECT is a folder)",
+    help="Entry python file",
 )
 @click.option(
     "--include",
     "include",
     multiple=True,
-    help="Include additional file or folder (source[:destination], this option is repeatable)",
+    help="Include additional file or folder (source[:destination]) (repeatable)",
+)
+@click.option(
+    "--env",
+    "env",
+    multiple=True,
+    help="Add environment variables (key=value) (repeatable)",
 )
 @click.option(
     "--win-gui",
     is_flag=True,
-    help="Enable Windows GUI mode (which hides the console window)",
+    help="Hide the console window on Windows",
 )
 @click.option(
     "--debug",
@@ -72,6 +77,7 @@ def cli(
     uv_lock: Path | None,
     entry: str,
     include: tuple[str, ...],
+    env: tuple[str, ...],
     win_gui: bool,
     debug: bool,
 ) -> None:
@@ -137,9 +143,12 @@ def cli(
         if python_project.is_file():
             entry = python_project.name
         win_gui_num = 1 if win_gui else 0
-        (output_folder / "config.txt").write_text(
-            f"entry={entry}\nwin_gui={win_gui_num}\n"
-        )
+        text = f"entry={entry}\nwin_gui={win_gui_num}\n"
+        if env:
+            for e in env:
+                key, value = e.split("=", 1)
+                text += f"env_{key}={value}\n"
+        (output_folder / "config.txt").write_text(text)
         click.secho("✓ wrote config.txt", fg="green")
 
         # copy python project files

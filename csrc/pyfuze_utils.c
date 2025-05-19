@@ -7,12 +7,14 @@
 #include "dirent.h"
 #include "limits.h"
 
-#include "pyfuze_config_parser.h"
+#include "pyfuze_config.h"
 
 char python_folder_name[PATH_MAX] = {0};
 
 int config_win_gui = 0;
 char config_entry[PATH_MAX] = {0};
+
+Config* config = NULL;
 
 void chdir_to_executable_folder(char *argv[]) {
     char *executable_path = strdup(argv[0]);
@@ -41,7 +43,7 @@ void find_python_folder_name() {
 }
 
 void read_config() {
-    ConfigParser* config = parse_config("config.txt");
+    config = parse_config("config.txt");
     if (!config) {
         printf("Failed to parse config.txt\n");
         exit(1);
@@ -49,5 +51,4 @@ void read_config() {
 
     config_win_gui = atoi(get_config_value(config, "win_gui"));
     strcpy(config_entry, get_config_value(config, "entry"));
-    free_config_parser(config);
 }

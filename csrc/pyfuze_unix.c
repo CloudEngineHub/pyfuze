@@ -1,6 +1,7 @@
 #include "pyfuze_unix.h"
 
 #include "stdio.h"
+#include "string.h"
 #include "unistd.h"
 #include "spawn.h"
 
@@ -25,13 +26,27 @@ void run_command_unix(const char * const argv[]) {
     }
 }
 
+void set_config_env_unix() {
+    for (size_t i = 0; i < config->count; i++) {
+        char* key = config->items[i].key;
+        char* value = config->items[i].value;
+        if (strncmp(key, "env_", 4) != 0) {
+            continue;
+        }
+        // remove the env_ prefix
+        key = key + 4;
+        setenv(key, value, 1);
+    }
+}
+
 int main_unix(int argc, char *argv[]) {
     const char *uv_binary = "./uv/uv";
+    setenv("UV_UNMANAGED_INSTALL", "uv", 1);
+    set_config_env_unix();
 
     // install uv
     if (!path_exists(uv_binary)) {
         printf("%s not found, installing...\n", uv_binary);
-        setenv("UV_UNMANAGED_INSTALL", "uv", 1);
         run_command_unix((const char *const[]){
             "sh", "-c", "curl -LsSf https://astral.sh/uv/install.sh | sh", NULL
         });

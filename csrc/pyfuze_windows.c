@@ -56,15 +56,33 @@ void run_command_windows(char *cmdline) {
     free(cmdline_utf16);
 }
 
+void set_config_env_windows() {
+    for (size_t i = 0; i < config->count; i++) {
+        char* key = config->items[i].key;
+        char* value = config->items[i].value;
+        if (strncmp(key, "env_", 4) != 0) {
+            continue;
+        }
+        // remove the env_ prefix
+        key = key + 4;
+        char16_t *key_utf16 = utf8to16(key, -1, 0);
+        char16_t *value_utf16 = utf8to16(value, -1, 0);
+        SetEnvironmentVariable(key_utf16, value_utf16);
+        free(key_utf16);
+        free(value_utf16);
+    }
+}
+
 int main_windows(int argc, char *argv[]) {
     windows_attach_console(!config_win_gui);
+    SetEnvironmentVariable(u"UV_UNMANAGED_INSTALL", u"uv");
+    SetEnvironmentVariable(u"PSModulePath", u"");
+    SetEnvironmentVariable(u"PSMODULEPATH", u"");
+    set_config_env_windows();
 
     // install uv
     if (!path_exists(".\\uv\\uv.exe")) {
         printf(".\\uv\\uv.exe not found, installing...\n");
-        SetEnvironmentVariable(u"UV_UNMANAGED_INSTALL", u"uv");
-        SetEnvironmentVariable(u"PSModulePath", u"");
-        SetEnvironmentVariable(u"PSMODULEPATH", u"");
         run_command_windows("\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -c \"irm https://astral.sh/uv/install.ps1 | iex\"");
     }
 
