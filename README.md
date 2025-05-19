@@ -15,7 +15,7 @@ pip install pyfuze
 
 ## usage
 
-```bash
+```text
 Usage: pyfuze [OPTIONS] PYTHON_PROJECT
 
   pyfuze — package Python scripts with dependencies.
