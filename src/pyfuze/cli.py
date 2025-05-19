@@ -52,6 +52,12 @@ from . import __version__
     help="Include additional file or folder (source[:destination]) (repeatable)",
 )
 @click.option(
+    "--exclude",
+    "exclude",
+    multiple=True,
+    help="Exclude path relative to the project root (repeatable)",
+)
+@click.option(
     "--env",
     "env",
     multiple=True,
@@ -91,6 +97,7 @@ def cli(
     uv_lock: Path | None,
     entry: str,
     include: tuple[str, ...],
+    exclude: tuple[str, ...],
     env: tuple[str, ...],
     win_gui: bool,
     uv_install_script_windows: str,
@@ -176,11 +183,18 @@ uv_install_script_unix={uv_install_script_unix}
         src_dir.mkdir(parents=True, exist_ok=True)
 
         if python_project.is_dir():
+            exclude_path_set = set()
+            if exclude:
+                for e in exclude:
+                    exclude_path_set.add((python_project / e).resolve())
             for pyfile in python_project.rglob("*.py"):
-                if pyfile.is_file and (
+                pyfile = pyfile.resolve()
+                if pyfile.is_file() and (
                     pyfile.parent == python_project
                     or (pyfile.parent / "__init__.py").exists()
                 ):
+                    if pyfile in exclude_path_set:
+                        continue
                     dest_path = src_dir / pyfile.relative_to(python_project)
                     dest_path.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(pyfile, dest_path)
