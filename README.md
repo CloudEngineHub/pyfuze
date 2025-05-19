@@ -16,16 +16,36 @@ pip install pyfuze
 ## usage
 
 ```bash
-pyfuze ./examples/ip.py --reqs requests --win-gui
+Usage: pyfuze [OPTIONS] PYTHON_PROJECT
+
+  pyfuze — package Python scripts with dependencies.
+
+Options:
+  --python TEXT     Add .python-version file
+  --reqs TEXT       Add requirements.txt file (input comma-separated string OR requirements.txt path)
+  --pyproject FILE  Add pyproject.toml file
+  --uv-lock FILE    Add uv.lock file
+  --entry TEXT      Entry point (only works when PYTHON_PROJECT is a folder) [default: main.py]
+  --include TEXT    Include additional file or folder (source[:destination], this option is repeatable)
+  --win-gui         Enable Windows GUI mode (which hides the console window)
+  -d, --debug       Enable debug logging
+  -v, --version     Show the version and exit.
+  -h, --help        Show this message and exit.
+```
+
+## example
+
+```bash
+pyfuze ./examples/ip.py --python 3.8 --reqs requests --win-gui
 ```
 
 This command will generate `dist/ip.zip` which contains:
 
 - pyfuze.com
-- .python-version (default "3.8")
+- .python-version ("3.8")
 - requirements.txt ("requests")
 - src/ip.py
-- config.txt (2 lines: entry=ip.py win_gui=1)
+- config.txt (2 lines: "entry=ip.py" "win_gui=1")
 
 `pyfuze.com` is an [Actually Portable Executable](https://justine.lol/ape.html), capable of running natively on Linux, macOS, Windows, FreeBSD, OpenBSD, NetBSD, and BIOS across both AMD64 and ARM64 architectures.
 

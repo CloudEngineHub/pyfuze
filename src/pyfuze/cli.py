@@ -47,6 +47,12 @@ from . import __version__
     help="Entry point (only works when PYTHON_PROJECT is a folder)",
 )
 @click.option(
+    "--include",
+    "include",
+    multiple=True,
+    help="Include additional file or folder (source[:destination], this option is repeatable)",
+)
+@click.option(
     "--win-gui",
     is_flag=True,
     help="Enable Windows GUI mode (which hides the console window)",
@@ -65,6 +71,7 @@ def cli(
     pyproject: Path | None,
     uv_lock: Path | None,
     entry: str,
+    include: tuple[str, ...],
     win_gui: bool,
     debug: bool,
 ) -> None:
@@ -73,17 +80,17 @@ def cli(
         os.environ["PYFUZE_DEBUG"] = "1"
 
     try:
-        build_dir = Path("build")
+        build_dir = Path("build").resolve()
         python_project = python_project.resolve()
-        output_folder = build_dir / python_project.stem
+        output_folder = (build_dir / python_project.stem).resolve()
         shutil.rmtree(output_folder, ignore_errors=True)
         output_folder.mkdir(parents=True, exist_ok=True)
 
-        dist_dir = Path("dist")
+        dist_dir = Path("dist").resolve()
         dist_dir.mkdir(parents=True, exist_ok=True)
 
         # copy the stub launcher
-        src_com = Path(__file__).parent / "pyfuze.com"
+        src_com = (Path(__file__).parent / "pyfuze.com").resolve()
         shutil.copy2(src_com, output_folder / "pyfuze.com")
         click.secho("✓ copied pyfuze.com", fg="green")
 
@@ -94,7 +101,7 @@ def cli(
 
         # write requirements.txt
         if requirements:
-            req_path = Path(requirements)
+            req_path = Path(requirements).resolve()
             if req_path.is_file():
                 shutil.copy2(req_path, output_folder / "requirements.txt")
                 if req_path.name != "requirements.txt":
@@ -136,7 +143,7 @@ def cli(
         click.secho("✓ wrote config.txt", fg="green")
 
         # copy python project files
-        src_dir = output_folder / "src"
+        src_dir = (output_folder / "src").resolve()
         src_dir.mkdir(parents=True, exist_ok=True)
 
         if python_project.is_dir():
@@ -152,6 +159,37 @@ def cli(
             shutil.copy2(python_project, src_dir / python_project.name)
 
         click.secho(f"✓ copied {python_project.name} to src folder", fg="green")
+
+        # handle additional includes
+        if include:
+            for include_item in include:
+                if ":" in include_item:
+                    source, destination = include_item.split(":", 1)
+                else:
+                    source = include_item
+                    destination = "."
+
+                source_path = Path(source)
+                if not source_path.exists():
+                    click.secho(
+                        f"Warning: Source path {source} does not exist", fg="yellow"
+                    )
+                    continue
+
+                dest_path = (src_dir / destination / source_path.name).resolve()
+                dest_path_rel = dest_path.relative_to(output_folder)
+                dest_path.parent.mkdir(parents=True, exist_ok=True)
+                if source_path.is_file():
+                    shutil.copy2(source_path, dest_path)
+                    click.secho(
+                        f"✓ copied {source_path.name} to {dest_path_rel}", fg="green"
+                    )
+                elif source_path.is_dir():
+                    shutil.copytree(source_path, dest_path, dirs_exist_ok=True)
+                    click.secho(
+                        f"✓ copied directory {source_path.name} to {dest_path_rel}",
+                        fg="green",
+                    )
 
         # build the zip
         zip_path = dist_dir / f"{python_project.stem}.zip"
