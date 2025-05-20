@@ -27,13 +27,13 @@ Options:
   --pyproject FILE                Add pyproject.toml file
   --uv-lock FILE                  Add uv.lock file
   --entry TEXT                    Entry python file
+  --win-gui                       Hide the console window on Windows
   --include TEXT                  Include additional file or folder
                                   (source[:destination]) (repeatable)
   --exclude TEXT                  Exclude path relative to the project root
                                   (repeatable)
   --env TEXT                      Add environment variables (key=value)
                                   (repeatable)
-  --win-gui                       Hide the console window on Windows
   --uv-install-script-windows TEXT
                                   UV installation script URI for Windows
                                   [default: https://astral.sh/uv/install.ps1]
@@ -53,17 +53,17 @@ pyfuze ./examples/ip.py --python 3.8 --reqs requests --win-gui
 This command will generate `dist/ip.zip` which contains:
 
 - pyfuze.com
-- .python-version ("3.8")
-- requirements.txt ("requests")
+- .python-version
+- requirements.txt
 - src/ip.py
-- config.txt (2 lines: "entry=ip.py" "win_gui=1")
+- config.txt
 
 `pyfuze.com` is an [Actually Portable Executable](https://justine.lol/ape.html), capable of running natively on Linux, macOS, Windows, FreeBSD, OpenBSD, NetBSD, and BIOS across both AMD64 and ARM64 architectures.
 
 Executing `pyfuze.com` will do the following:
 
 - install [uv](https://github.com/astral-sh/uv) in `./uv` folder
-- install python in `./python` (version: `.python-version`)
+- install python in `./python`
 - install dependencies in `requirements.txt`
 - run the Python project
 

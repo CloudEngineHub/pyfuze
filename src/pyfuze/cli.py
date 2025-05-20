@@ -46,6 +46,11 @@ from . import __version__
     help="Entry python file",
 )
 @click.option(
+    "--win-gui",
+    is_flag=True,
+    help="Hide the console window on Windows",
+)
+@click.option(
     "--include",
     "include",
     multiple=True,
@@ -62,11 +67,6 @@ from . import __version__
     "env",
     multiple=True,
     help="Add environment variables (key=value) (repeatable)",
-)
-@click.option(
-    "--win-gui",
-    is_flag=True,
-    help="Hide the console window on Windows",
 )
 @click.option(
     "--uv-install-script-windows",
@@ -96,10 +96,10 @@ def cli(
     pyproject: Path | None,
     uv_lock: Path | None,
     entry: str,
+    win_gui: bool,
     include: tuple[str, ...],
     exclude: tuple[str, ...],
     env: tuple[str, ...],
-    win_gui: bool,
     uv_install_script_windows: str,
     uv_install_script_unix: str,
     debug: bool,
