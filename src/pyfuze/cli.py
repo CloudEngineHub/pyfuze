@@ -66,7 +66,7 @@ from . import __version__
     "--env",
     "env",
     multiple=True,
-    help="Add environment variables (key=value) (repeatable)",
+    help="Add environment variables such as INSTALLER_DOWNLOAD_URL, UV_PYTHON_INSTALL_MIRROR and UV_DEFAULT_INDEX (key=value) (repeatable)",
 )
 @click.option(
     "--uv-install-script-windows",

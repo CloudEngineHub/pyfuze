@@ -5,7 +5,7 @@
 
 ## description
 
-pyfuze makes your Python project run anywhere.
+pyfuze makes your Python project truly cross-platform.
 
 ## install
 
@@ -32,8 +32,10 @@ Options:
                                   (source[::destination]) (repeatable)
   --exclude TEXT                  Exclude path relative to the project root
                                   (repeatable)
-  --env TEXT                      Add environment variables (key=value)
-                                  (repeatable)
+  --env TEXT                      Add environment variables such as
+                                  INSTALLER_DOWNLOAD_URL,
+                                  UV_PYTHON_INSTALL_MIRROR and
+                                  UV_DEFAULT_INDEX (key=value) (repeatable)
   --uv-install-script-windows TEXT
                                   UV installation script URI for Windows
                                   [default: https://astral.sh/uv/install.ps1]
