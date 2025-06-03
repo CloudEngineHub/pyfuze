@@ -6,11 +6,10 @@ import requests
 
 def get_ip():
     try:
-        response = requests.get("https://api.ipify.org")
-        response.encoding = "utf-8"
-        return response.text
+        response = requests.get("https://4.ipw.cn", timeout=3)
+        return response.text.strip()
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error: {e}"
 
 
 def main():
