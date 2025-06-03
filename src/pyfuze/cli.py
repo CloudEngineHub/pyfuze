@@ -54,7 +54,7 @@ from . import __version__
     "--include",
     "include",
     multiple=True,
-    help="Include additional file or folder (source[:destination]) (repeatable)",
+    help="Include additional file or folder (source[::destination]) (repeatable)",
 )
 @click.option(
     "--exclude",
@@ -227,11 +227,11 @@ uv_install_script_unix={uv_install_script_unix}
         # handle additional includes
         if include:
             for include_item in include:
-                if ":" in include_item:
-                    source, destination = include_item.split(":", 1)
+                if "::" in include_item:
+                    source, destination = include_item.rsplit("::", 1)
                 else:
                     source = include_item
-                    destination = "."
+                    destination = Path(source).name
 
                 source_path = Path(source)
                 if not source_path.exists():
@@ -240,7 +240,7 @@ uv_install_script_unix={uv_install_script_unix}
                     )
                     continue
 
-                dest_path = (src_dir / destination / source_path.name).resolve()
+                dest_path = (src_dir / destination).resolve()
                 dest_path_rel = dest_path.relative_to(output_folder)
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 if source_path.is_file():
