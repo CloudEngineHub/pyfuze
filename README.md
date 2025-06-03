@@ -29,7 +29,7 @@ Options:
   --entry TEXT                    Entry python file
   --win-gui                       Hide the console window on Windows
   --include TEXT                  Include additional file or folder
-                                  (source[:destination]) (repeatable)
+                                  (source[::destination]) (repeatable)
   --exclude TEXT                  Exclude path relative to the project root
                                   (repeatable)
   --env TEXT                      Add environment variables (key=value)
@@ -39,6 +39,12 @@ Options:
                                   [default: https://astral.sh/uv/install.ps1]
   --uv-install-script-unix TEXT   UV installation script URI for Unix
                                   [default: https://astral.sh/uv/install.sh]
+  --bin-name TEXT                 Name of the executable file  [default:
+                                  pyfuze.com]
+  --dir-name TEXT                 Name of the output directory (defaults to
+                                  project name)
+  --zip-name TEXT                 Name of the output zip file (defaults to
+                                  project name)
   -d, --debug                     Enable debug logging
   -v, --version                   Show the version and exit.
   -h, --help                      Show this message and exit.
