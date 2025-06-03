@@ -86,9 +86,17 @@ int main_unix(int argc, char *argv[]) {
 
     // uv sync
     if (path_exists("uv.lock")) {
-        run_command_unix((const char *const[]){uv_binary, "sync", "--frozen", "--python", python_path, NULL});
+        if (path_exists(".venv/pyvenv.cfg")) {
+            run_command_unix((const char *const[]){uv_binary, "sync", "--frozen", "--quiet", NULL});
+        } else {
+            run_command_unix((const char *const[]){uv_binary, "sync", "--frozen", "--quiet", "--python", python_path, NULL});
+        }
     } else {
-        run_command_unix((const char *const[]){uv_binary, "sync", "--python", python_path, NULL});
+        if (path_exists(".venv/pyvenv.cfg")) {
+            run_command_unix((const char *const[]){uv_binary, "sync", "--quiet", NULL});
+        } else {
+            run_command_unix((const char *const[]){uv_binary, "sync", "--quiet", "--python", python_path, NULL});
+        }
     }
 
     // uv run
