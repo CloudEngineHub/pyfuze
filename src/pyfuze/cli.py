@@ -83,6 +83,23 @@ from . import __version__
     help="UV installation script URI for Unix",
 )
 @click.option(
+    "--bin-name",
+    "bin_name",
+    default="pyfuze.com",
+    show_default=True,
+    help="Name of the executable file",
+)
+@click.option(
+    "--dir-name",
+    "dir_name",
+    help="Name of the output directory (defaults to project name)",
+)
+@click.option(
+    "--zip-name",
+    "zip_name",
+    help="Name of the output zip file (defaults to project name)",
+)
+@click.option(
     "--debug",
     "-d",
     is_flag=True,
@@ -102,6 +119,9 @@ def cli(
     env: tuple[str, ...],
     uv_install_script_windows: str,
     uv_install_script_unix: str,
+    bin_name: str,
+    dir_name: str | None,
+    zip_name: str | None,
     debug: bool,
 ) -> None:
     """pyfuze — package Python scripts with dependencies."""
@@ -111,7 +131,8 @@ def cli(
     try:
         build_dir = Path("build").resolve()
         python_project = python_project.resolve()
-        output_folder = (build_dir / python_project.stem).resolve()
+        dir_name = dir_name or python_project.stem
+        output_folder = (build_dir / dir_name).resolve()
         shutil.rmtree(output_folder, ignore_errors=True)
         output_folder.mkdir(parents=True, exist_ok=True)
 
@@ -120,8 +141,8 @@ def cli(
 
         # copy the stub launcher
         src_com = (Path(__file__).parent / "pyfuze.com").resolve()
-        shutil.copy2(src_com, output_folder / "pyfuze.com")
-        click.secho("✓ copied pyfuze.com", fg="green")
+        shutil.copy2(src_com, output_folder / bin_name)
+        click.secho(f"✓ copied {bin_name}", fg="green")
 
         # write .python-version
         if python_version:
@@ -235,7 +256,8 @@ uv_install_script_unix={uv_install_script_unix}
                     )
 
         # build the zip
-        zip_path = dist_dir / f"{python_project.stem}.zip"
+        zip_name = zip_name or (python_project.stem + ".zip")
+        zip_path = dist_dir / zip_name
         zip_path.unlink(missing_ok=True)
 
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -243,7 +265,7 @@ uv_install_script_unix={uv_install_script_unix}
                 for name in files:
                     file_path = Path(root) / name
                     rel_path = file_path.relative_to(build_dir)
-                    if name == "pyfuze.com":
+                    if name == bin_name:
                         info = zipfile.ZipInfo(str(rel_path), time.localtime())
                         info.create_system = 3  # Unix
                         info.external_attr = 0o100755 << 16
