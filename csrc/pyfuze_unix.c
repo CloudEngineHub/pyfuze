@@ -41,6 +41,7 @@ void set_config_env_unix() {
 
 int main_unix(int argc, char *argv[]) {
     const char *uv_binary = "./uv/uv";
+    setenv("UV_CACHE_DIR", "cache", 1);
     setenv("UV_UNMANAGED_INSTALL", "uv", 1);
     set_config_env_unix();
 

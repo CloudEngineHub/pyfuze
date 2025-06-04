@@ -82,9 +82,10 @@ int main_windows(int argc, char *argv[]) {
     if (!config_win_gui) {
         windows_attach_console();
     }
-    SetEnvironmentVariable(u"UV_UNMANAGED_INSTALL", u"uv");
     SetEnvironmentVariable(u"PSModulePath", u"");
     SetEnvironmentVariable(u"PSMODULEPATH", u"");
+    SetEnvironmentVariable(u"UV_CACHE_DIR", u"cache");
+    SetEnvironmentVariable(u"UV_UNMANAGED_INSTALL", u"uv");
     set_config_env_windows();
 
     char cmdline[8192];
