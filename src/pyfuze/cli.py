@@ -10,6 +10,7 @@ from traceback import print_exc
 import click
 
 from . import __version__
+from .utils import set_pe_subsystem_console
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
