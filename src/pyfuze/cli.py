@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import zipfile
 from pathlib import Path
 from traceback import print_exc
@@ -60,6 +59,110 @@ def copy_includes(include: tuple[str, ...], dest_dir: Path) -> None:
         )
 
 
+def download_uv(uv_install_script_windows: str, uv_install_script_unix: str) -> None:
+    if os.name == "nt":
+        if Path(uv_install_script_windows).exists():
+            run_cmd(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    uv_install_script_windows,
+                ]
+            )
+        else:
+            run_cmd(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-c",
+                    f"irm {uv_install_script_windows} | iex",
+                ]
+            )
+    elif os.name == "posix":
+        if Path(uv_install_script_unix).exists():
+            run_cmd(["sh", uv_install_script_unix])
+        else:
+            run_cmd(["sh", "-c", f"curl -LsSf {uv_install_script_unix} | sh"])
+    else:
+        raise ValueError(f"Unsupported platform: {os.name}")
+
+
+def download_python() -> None:
+    if os.name == "nt":
+        uv_path = ".\\uv\\uv.exe"
+    elif os.name == "posix":
+        uv_path = "./uv/uv"
+    else:
+        raise ValueError(f"Unsupported platform: {os.name}")
+
+    run_cmd([uv_path, "python", "install", "--install-dir", "python"])
+
+
+def find_python_path() -> Path:
+    python_dir = Path("python")
+    for path in python_dir.iterdir():
+        if path.is_file() or path.name.startswith("."):
+            continue
+        return path
+
+
+def download_deps() -> None:
+    if os.name == "nt":
+        uv_path = ".\\uv\\uv.exe"
+    elif os.name == "posix":
+        uv_path = "./uv/uv"
+    else:
+        raise ValueError(f"Unsupported platform: {os.name}")
+
+    # uv init
+    run_cmd([uv_path, "init", "--bare", "--no-workspace"])
+    if Path("requirements.txt").exists():
+        # uv add
+        run_cmd(
+            [uv_path, "add", "-r", "requirements.txt", "--python", find_python_path()]
+        )
+
+    # uv sync
+    cmd = [uv_path, "sync", "--python", find_python_path()]
+    if Path("uv.lock").exists():
+        cmd.append("--frozen")
+    run_cmd(cmd)
+
+
+def download(
+    dest_dir: Path,
+    env: tuple[str, ...],
+    uv_install_script_windows: str,
+    uv_install_script_unix: str,
+    include_uv: bool,
+    include_python: bool,
+    include_deps: bool,
+) -> None:
+    os.chdir(dest_dir)
+
+    os.environ["UV_CACHE_DIR"] = "cache"
+    os.environ["UV_UNMANAGED_INSTALL"] = "uv"
+    os.environ["VIRTUAL_ENV"] = ".venv"
+    for e in env:
+        key, value = e.split("=", 1)
+        os.environ[key] = value
+
+    if include_uv:
+        download_uv(uv_install_script_windows, uv_install_script_unix)
+        click.secho(f"✓ downloaded uv", fg="green")
+    if include_python:
+        download_python()
+        click.secho(f"✓ downloaded python", fg="green")
+    if include_deps:
+        download_deps()
+        click.secho(f"✓ downloaded dependencies", fg="green")
+
+
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument(
     "python_project",
@@ -68,7 +171,7 @@ def copy_includes(include: tuple[str, ...], dest_dir: Path) -> None:
 @click.option(
     "--output-name",
     "output_name",
-    help="Output name [default: <project_name>.com]",
+    help="Output APE name [default: <project_name>.com]",
 )
 @click.option(
     "--unzip-path",
@@ -121,6 +224,24 @@ def copy_includes(include: tuple[str, ...], dest_dir: Path) -> None:
     help="Exclude path relative to the project root (repeatable)",
 )
 @click.option(
+    "--include-uv",
+    "include_uv",
+    is_flag=True,
+    help="Include uv binary in the output APE",
+)
+@click.option(
+    "--include-python",
+    "include_python",
+    is_flag=True,
+    help="Include python binary in the output APE (automatically includes uv)",
+)
+@click.option(
+    "--include-deps",
+    "include_deps",
+    is_flag=True,
+    help="Include dependencies in the output APE (automatically includes python and uv)",
+)
+@click.option(
     "--env",
     "env",
     multiple=True,
@@ -159,6 +280,9 @@ def cli(
     win_gui: bool,
     include: tuple[str, ...],
     exclude: tuple[str, ...],
+    include_uv: bool,
+    include_python: bool,
+    include_deps: bool,
     env: tuple[str, ...],
     uv_install_script_windows: str,
     uv_install_script_unix: str,
@@ -174,6 +298,8 @@ def cli(
     unzip_path = unzip_path or f"/tmp/{project_name}"
     entry = python_project.name if python_project.is_file() else entry
     win_gui_num = 1 if win_gui else 0
+    include_uv = include_uv or include_python or include_deps
+    include_python = include_python or include_deps
 
     try:
         # create build directory
@@ -234,6 +360,17 @@ def cli(
 
         # copy additional includes
         copy_includes(include, temp_dir)
+
+        # download uv, python, dependencies
+        download(
+            temp_dir,
+            env,
+            uv_install_script_windows,
+            uv_install_script_unix,
+            include_uv,
+            include_python,
+            include_deps,
+        )
 
         # add temp directory contents to output_path APE
         with zipfile.ZipFile(output_path, "a", zipfile.ZIP_DEFLATED) as zf:

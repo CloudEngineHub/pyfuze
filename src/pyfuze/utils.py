@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import sys
 import shutil
+import subprocess
 from pathlib import Path
 
 
@@ -41,6 +43,21 @@ def copy_python_source(src: Path, dst: Path, exclude_path_set: set[Path]) -> Non
                 and pyfile not in exclude_path_set
             ):
                 cp(pyfile, dst / pyfile.relative_to(src))
+
+
+def run_cmd(cmd: list[str]) -> None:
+    startup = subprocess.STARTUPINFO()
+    startup.dwFlags = subprocess.STARTF_USESHOWWINDOW
+    startup.wShowWindow = subprocess.SW_HIDE
+    process = subprocess.Popen(
+        cmd,
+        shell=True,  # NOTE: hide the console window on Windows
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        startupinfo=startup,
+    )
+    process.wait()
 
 
 def set_pe_subsystem(file_path: str, subsystem_type: int):
