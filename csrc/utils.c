@@ -1,0 +1,381 @@
+#include "utils.h"
+
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
+#include "unistd.h"
+#include "dirent.h"
+#include "limits.h"
+#include "stdarg.h"
+#include "spawn.h"
+#include "sys/stat.h"
+
+#include "libc/dce.h"
+#include "libc/x/x.h"
+#include "libc/nt/console.h"
+#include "libc/nt/process.h"
+#include "libc/nt/runtime.h"
+#include "libc/nt/synchronization.h"
+#include "libc/nt/enum/processcreationflags.h"
+#include "libc/errno.h"
+
+#include "config.h"
+
+int attach_console = 0;
+int alloc_console = 0;
+
+char uv_dir[PATH_MAX] = {0};
+char uv_path[PATH_MAX] = {0};
+char cache_dir[PATH_MAX] = {0};
+char python_dir[PATH_MAX] = {0};
+char python_path[PATH_MAX] = {0};
+char pyvenv_cfg_path[PATH_MAX] = {0};
+char src_dir[PATH_MAX] = {0};
+char pyproject_toml_path[PATH_MAX] = {0};
+char requirements_txt_path[PATH_MAX] = {0};
+char uv_lock_path[PATH_MAX] = {0};
+
+char config_unzip_path[PATH_MAX] = {0};
+char config_uv_install_script_windows[PATH_MAX] = {0};
+char config_uv_install_script_unix[PATH_MAX] = {0};
+char config_entry[PATH_MAX] = {0};
+int config_win_gui = 0;
+
+Config *config = NULL;
+
+char cmdline[8192];
+
+int path_exists(const char *filename) {
+    return access(filename, F_OK) == 0;
+}
+
+void path_join(char *result, size_t result_size, const char *p1, const char *p2) {
+    if (p1[strlen(p1) - 1] == '/') {
+        snprintf(result, result_size, "%s%s", p1, p2);
+    } else {
+        snprintf(result, result_size, "%s/%s", p1, p2);
+    }
+}
+
+void find_python_path() {
+    if (path_exists(python_dir)) {
+        DIR *d = opendir(python_dir);
+        struct dirent *ent;
+        if (d) {
+            while ((ent = readdir(d))) {
+                if (ent->d_name[0] == '.') continue;
+                path_join(python_path, sizeof(python_path), python_dir, ent->d_name);
+                break;
+            }
+            closedir(d);
+        }
+    }
+}
+
+void read_config() {
+    config = parse_config("/tmp/config.txt");
+    if (!config) {
+        printf("Failed to parse config.txt\n");
+        exit(1);
+    }
+
+    strcpy(config_unzip_path, get_config_value(config, "unzip_path"));
+    strcpy(config_uv_install_script_windows, get_config_value(config, "uv_install_script_windows"));
+    strcpy(config_uv_install_script_unix, get_config_value(config, "uv_install_script_unix"));
+    strcpy(config_entry, get_config_value(config, "entry"));
+    config_win_gui = atoi(get_config_value(config, "win_gui"));
+
+    path_join(uv_dir, sizeof(uv_dir), config_unzip_path, "uv");
+    path_join(uv_path, sizeof(uv_path), uv_dir, IsWindows() ? "uv.exe" : "uv");
+    path_join(cache_dir, sizeof(cache_dir), config_unzip_path, "cache");
+    path_join(python_dir, sizeof(python_dir), config_unzip_path, "python");
+    path_join(pyvenv_cfg_path, sizeof(pyvenv_cfg_path), config_unzip_path, ".venv/pyvenv.cfg");
+    path_join(src_dir, sizeof(src_dir), config_unzip_path, "src");
+    path_join(pyproject_toml_path, sizeof(pyproject_toml_path), config_unzip_path, "pyproject.toml");
+    path_join(requirements_txt_path, sizeof(requirements_txt_path), config_unzip_path, "requirements.txt");
+    path_join(uv_lock_path, sizeof(uv_lock_path), config_unzip_path, "uv.lock");
+}
+
+void copy_file(const char *src_path, const char *dst_path) {
+    struct stat st;
+    int src_fd, dst_fd;
+
+    if ((src_fd = open(src_path, O_RDONLY)) == -1) exit(1);
+    fstat(src_fd, &st);
+
+    if ((dst_fd = creat(dst_path, st.st_mode)) == -1) {
+        close(src_fd);
+        exit(1);
+    }
+
+    ssize_t result = copyfd(src_fd, dst_fd, -1);
+    close(src_fd);
+    close(dst_fd);
+
+    if (result == -1) exit(1);
+}
+
+void mkdir_recursive(const char *path) {
+    char tmp[PATH_MAX];
+    char *p = NULL;
+    size_t len;
+
+    snprintf(tmp, sizeof(tmp), "%s", path);
+    len = strlen(tmp);
+
+    if (tmp[len - 1] == '/')
+        tmp[len - 1] = 0;
+
+    for (p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = 0;
+            if (mkdir(tmp, 0755) != 0) {
+                if (errno != EEXIST) {
+                    printf("mkdir %s failed\n", tmp);
+                    exit(1);
+                }
+            }
+            *p = '/';
+        }
+    }
+
+    if (mkdir(tmp, 0755) != 0) {
+        if (errno != EEXIST) {
+            printf("mkdir %s failed\n", tmp);
+            exit(1);
+        }
+    }
+}
+
+void copy_directory(const char *src_dir, const char *dst_dir) {
+    struct stat st;
+    if (stat(src_dir, &st) != 0) exit(1);
+
+    if (!path_exists(dst_dir)) {
+        mkdir_recursive(dst_dir);
+    }
+
+    DIR *dir = opendir(src_dir);
+    if (!dir) exit(1);
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        char src_path[PATH_MAX];
+        char dst_path[PATH_MAX];
+        snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, entry->d_name);
+        snprintf(dst_path, sizeof(dst_path), "%s/%s", dst_dir, entry->d_name);
+
+        if (stat(src_path, &st) != 0) {
+            closedir(dir);
+            exit(1);
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            copy_directory(src_path, dst_path);
+        } else if (S_ISREG(st.st_mode)) {
+            copy_file(src_path, dst_path);
+        }
+    }
+
+    closedir(dir);
+}
+
+void windows_attach_or_alloc_console() {
+    if (IsWindows() && config_win_gui && !attach_console) {
+        attach_console = 1;
+        if (!AttachConsole(kNtAttachParentProcess)) {
+            alloc_console = 1;
+            if (!AllocConsole()) {
+                printf("Failed to allocate console\n");
+                exit(1);
+            }
+        }
+        freopen("CONOUT$", "w", stdout);
+        freopen("CONOUT$", "w", stderr);
+    }
+}
+
+void console_log(const char *format, ...) {
+    windows_attach_or_alloc_console();
+    va_list args;
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+}
+
+void close_console() {
+    fclose(stdout);
+    fclose(stderr);
+    FreeConsole();
+}
+
+void set_env(const char *key, const char *value) {
+    if (IsWindows()) {
+        char16_t *key_utf16 = utf8to16(key, -1, 0);
+        char16_t *value_utf16 = utf8to16(value, -1, 0);
+        SetEnvironmentVariable(key_utf16, value_utf16);
+        free(key_utf16);
+        free(value_utf16);
+    } else {
+        setenv(key, value, 1);
+    }
+}
+
+void set_config_env() {
+    for (size_t i = 0; i < config->count; i++) {
+        char *key = config->items[i].key;
+        char *value = config->items[i].value;
+        if (strncmp(key, "env_", 4) != 0) {
+            continue;
+        }
+        key = key + 4;
+        set_env(key, value);
+    }
+}
+
+void run_command_windows_utf16(char16_t *cmd) {
+    struct NtStartupInfo si = {0};
+    si.cb = sizeof(si);
+    struct NtProcessInformation pi = {0};
+
+    uint32_t creation_flags = config_win_gui ? kNtCreateNoWindow : 0;
+
+    if (!CreateProcess(
+            NULL,            // No module name (use command line)
+            cmd,             // Command line
+            NULL,            // Process handle not inheritable
+            NULL,            // Thread handle not inheritable
+            0,               // Set handle inheritance to FALSE
+            creation_flags,  // creation flags
+            NULL,            // Use parent's environment block
+            NULL,            // Use parent's starting directory
+            &si,             // Pointer to STARTUPINFO structure
+            &pi              // Pointer to PROCESS_INFORMATION structure
+            )) {
+        printf("CreateProcess failed: %lu\n", GetLastError());
+        exit(1);
+    }
+
+    WaitForSingleObject(pi.hProcess, 0xFFFFFFFF);
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+}
+
+void run_command_windows(char *cmd) {
+    char16_t *cmdline_utf16 = utf8to16(cmd, -1, 0);
+    run_command_windows_utf16(cmdline_utf16);
+    free(cmdline_utf16);
+}
+
+void run_command_unix(const char *const argv[]) {
+    pid_t pid;
+    int status;
+    if (posix_spawnp(&pid, argv[0], NULL, NULL, (char *const *)argv, environ) != 0) {
+        printf("posix_spawnp at %s failed\n", argv[0]);
+        exit(1);
+    }
+
+    if (waitpid(pid, &status, 0) == -1) {
+        printf("waitpid at %s failed\n", argv[0]);
+        exit(1);
+    }
+
+    if (!WIFEXITED(status)) {
+        printf("command %s did not exit\n", argv[0]);
+        exit(1);
+    }
+}
+
+#define RUN_COMMAND_UNIX(...) \
+    run_command_unix((const char *const[]){__VA_ARGS__, NULL})
+
+void install_uv() {
+    if (IsWindows()) {
+        if (path_exists(config_uv_install_script_windows)) {
+            snprintf(cmdline, sizeof(cmdline), "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -File \"%s\"", config_uv_install_script_windows);
+        } else {
+            snprintf(cmdline, sizeof(cmdline), "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -NoProfile -ExecutionPolicy Bypass -c \"irm %s | iex\"", config_uv_install_script_windows);
+        }
+        run_command_windows(cmdline);
+    } else {
+        if (path_exists(config_uv_install_script_unix)) {
+            RUN_COMMAND_UNIX("sh", config_uv_install_script_unix);
+        } else {
+            snprintf(cmdline, sizeof(cmdline), "curl -LsSf %s | sh", config_uv_install_script_unix);
+            RUN_COMMAND_UNIX("sh", "-c", cmdline);
+        }
+    }
+}
+
+void install_python() {
+    if (IsWindows()) {
+        snprintf(cmdline, sizeof(cmdline), "\"%s\" python install --install-dir %s", uv_path, python_dir);
+        run_command_windows(cmdline);
+    } else {
+        RUN_COMMAND_UNIX(uv_path, "python", "install", "--install-dir", python_dir);
+    }
+}
+
+void uv_init() {
+    if (IsWindows()) {
+        snprintf(cmdline, sizeof(cmdline), "\"%s\" init --bare --no-workspace", uv_path);
+        run_command_windows(cmdline);
+    } else {
+        RUN_COMMAND_UNIX(uv_path, "init", "--bare", "--no-workspace");
+    }
+}
+
+void uv_add_dependencies() {
+    if (IsWindows()) {
+        snprintf(cmdline, sizeof(cmdline), "\"%s\" add -r %s --python %s", uv_path, requirements_txt_path, python_path);
+        run_command_windows(cmdline);
+    } else {
+        RUN_COMMAND_UNIX(uv_path, "add", "-r", requirements_txt_path, "--python", python_path);
+    }
+}
+
+void uv_sync(int frozen, int python) {
+    if (IsWindows()) {
+        snprintf(cmdline, sizeof(cmdline), "\"%s\" sync --quiet", uv_path);
+        if (frozen) {
+            strcat(cmdline, " --frozen");
+        }
+        if (python) {
+            strcat(cmdline, " --python ");
+            strcat(cmdline, python_path);
+        }
+        run_command_windows(cmdline);
+    } else {
+        if (frozen) {
+            if (python) {
+                RUN_COMMAND_UNIX(uv_path, "sync", "--quiet", "--frozen", "--python", python_path);
+            } else {
+                RUN_COMMAND_UNIX(uv_path, "sync", "--quiet", "--frozen");
+            }
+        } else {
+            if (python) {
+                RUN_COMMAND_UNIX(uv_path, "sync", "--quiet", "--python", python_path);
+            } else {
+                RUN_COMMAND_UNIX(uv_path, "sync", "--quiet");
+            }
+        }
+    }
+}
+
+void uv_run(int gui) {
+    if (IsWindows()) {
+        if (gui) {
+            snprintf(cmdline, sizeof(cmdline), "\"%s\" run --project %s --directory %s --gui-script %s", uv_path, config_unzip_path, src_dir, config_entry);
+        } else {
+            snprintf(cmdline, sizeof(cmdline), "\"%s\" run --project %s --directory %s --script %s", uv_path, config_unzip_path, src_dir, config_entry);
+        }
+        run_command_windows(cmdline);
+    } else {
+        RUN_COMMAND_UNIX(uv_path, "run", "--project", config_unzip_path, "--directory", src_dir, "--script", config_entry);
+    }
+}

@@ -1,4 +1,4 @@
-#include "pyfuze_config.h"
+#include "config.h"
 
 #include "stdio.h"
 #include "stdlib.h"
@@ -41,7 +41,7 @@ Config* parse_config(const char* filename) {
     char line[1024];
     while (fgets(line, sizeof(line), file)) {
         char* equal_sign = strchr(line, '=');
-        if (!equal_sign) continue; // Skip lines without '='
+        if (!equal_sign) continue;  // Skip lines without '='
         *equal_sign = '\0';
         char* key = trim_whitespace(line);
         char* value = trim_whitespace(equal_sign + 1);

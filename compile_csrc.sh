@@ -1,1 +1,1 @@
-cosmocc -mcosmo csrc/{pyfuze.c,pyfuze_utils.c,pyfuze_windows.c,pyfuze_unix.c,pyfuze_config.c} -o src/pyfuze/pyfuze.com && find src/pyfuze -maxdepth 1 -type f -name 'pyfuze*' ! -name 'pyfuze.com' -delete
+cosmocc -mcosmo csrc/*.c -o src/pyfuze/pyfuze.com && find src/pyfuze -maxdepth 1 -type f -name 'pyfuze*' ! -name 'pyfuze.com' -delete
