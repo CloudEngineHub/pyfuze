@@ -176,7 +176,7 @@ def download(
 @click.option(
     "--unzip-path",
     "unzip_path",
-    help="Unzip path [default: /tmp/<project_name>]",
+    help="APE unzip path [default: /tmp/<project_name>]",
 )
 @click.option(
     "--python",
@@ -186,7 +186,7 @@ def download(
 @click.option(
     "--reqs",
     "requirements",
-    help="Add requirements.txt file (input comma-separated string OR requirements.txt path)",
+    help="Add requirements.txt file (input comma-separated string OR file path)",
 )
 @click.option(
     "--pyproject",
@@ -227,19 +227,21 @@ def download(
     "--include-uv",
     "include_uv",
     is_flag=True,
-    help="Include uv binary in the output APE",
+    help="Include uv in the output APE",
 )
 @click.option(
     "--include-python",
     "include_python",
     is_flag=True,
-    help="Include python binary in the output APE (automatically includes uv)",
+    help="Include python in the output APE (automatically includes uv)",
 )
 @click.option(
     "--include-deps",
     "include_deps",
     is_flag=True,
-    help="Include dependencies in the output APE (automatically includes python and uv)",
+    default=True,
+    show_default=True,
+    help="Include dependencies in the output APE (automatically includes uv and python)",
 )
 @click.option(
     "--env",
@@ -288,7 +290,7 @@ def cli(
     uv_install_script_unix: str,
     debug: bool,
 ) -> None:
-    """pyfuze — package Python scripts with dependencies."""
+    """pyfuze packages your Python project into a standalone self-extracting Actually Portable Executable (APE)."""
     if debug:
         os.environ["PYFUZE_DEBUG"] = "1"
 

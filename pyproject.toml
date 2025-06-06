@@ -2,7 +2,7 @@
 name = "pyfuze"
 version = "0.6.9"
 license = { text = "MIT" }
-description = "pyfuze makes your Python project run anywhere"
+description = "pyfuze packages your Python project into a standalone self-extracting Actually Portable Executable (APE)"
 readme = "README.md"
 authors = [
     { name = "Tanix", email = "tanixlu@foxmail.com" }

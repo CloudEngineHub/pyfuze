@@ -3,27 +3,42 @@
 [![GitHub](https://img.shields.io/badge/GitHub-5c5c5c)](https://github.com/TanixLu/pyfuze)
 [![PyPI - Version](https://img.shields.io/pypi/v/pyfuze)](https://pypi.org/project/pyfuze/)
 
-## description
+## Description
 
-pyfuze makes your Python project truly cross-platform.
+pyfuze packages your Python project into a standalone self-extracting Actually Portable Executable ([APE](https://justine.lol/ape.html)).
 
-## install
+## Packaging Modes
+
+| Mode                                | Standalone | Cross-Platform            |         Size          |
+|-----------------------------------|---------------------------------|--------------------------|------------------------|
+| Bundle Mode (default) | **Yes**                         | No (only runs on packaging platform) | Large                 |
+| Portable Mode | No(downloads dependencies at runtime)        | **Yes**                  | **Small**             |
+
+The mode is controlled by parameters like `--include-deps`. Please refer to the explanations in the sections below.
+
+
+## Install
 
 ```bash
 pip install pyfuze
 ```
 
-## usage
+## Usage
 
 ```text
 Usage: pyfuze [OPTIONS] PYTHON_PROJECT
 
-  pyfuze — package Python scripts with dependencies.
+  pyfuze packages your Python project into a standalone self-extracting
+  Actually Portable Executable (APE).
 
 Options:
+  --output-name TEXT              Output APE name [default:
+                                  <project_name>.com]
+  --unzip-path TEXT               APE unzip path [default:
+                                  /tmp/<project_name>]
   --python TEXT                   Add .python-version file
   --reqs TEXT                     Add requirements.txt file (input comma-
-                                  separated string OR requirements.txt path)
+                                  separated string OR file path)
   --pyproject FILE                Add pyproject.toml file
   --uv-lock FILE                  Add uv.lock file
   --entry TEXT                    Entry python file
@@ -32,6 +47,12 @@ Options:
                                   (source[::destination]) (repeatable)
   --exclude TEXT                  Exclude path relative to the project root
                                   (repeatable)
+  --include-uv                    Include uv in the output APE
+  --include-python                Include python in the output APE
+                                  (automatically includes uv)
+  --include-deps                  Include dependencies in the output APE
+                                  (automatically includes uv and python)
+                                  [default: True]
   --env TEXT                      Add environment variables such as
                                   INSTALLER_DOWNLOAD_URL,
                                   UV_PYTHON_INSTALL_MIRROR and
@@ -41,38 +62,13 @@ Options:
                                   [default: https://astral.sh/uv/install.ps1]
   --uv-install-script-unix TEXT   UV installation script URI for Unix
                                   [default: https://astral.sh/uv/install.sh]
-  --bin-name TEXT                 Name of the executable file  [default:
-                                  pyfuze.com]
-  --dir-name TEXT                 Name of the output directory (defaults to
-                                  project name)
-  --zip-name TEXT                 Name of the output zip file (defaults to
-                                  project name)
   -d, --debug                     Enable debug logging
   -v, --version                   Show the version and exit.
   -h, --help                      Show this message and exit.
 ```
 
-## example
+## Examples
 
 ```bash
-pyfuze ./examples/ip.py --python 3.8 --reqs requests --win-gui
+pyfuze ./examples/simple.py
 ```
-
-This command will generate `dist/ip.zip` which contains:
-
-- pyfuze.com
-- .python-version
-- requirements.txt
-- src/ip.py
-- config.txt
-
-`pyfuze.com` is an [Actually Portable Executable](https://justine.lol/ape.html), capable of running natively on Linux, macOS, Windows, FreeBSD, OpenBSD, NetBSD, and BIOS across both AMD64 and ARM64 architectures.
-
-Executing `pyfuze.com` will do the following:
-
-- install [uv](https://github.com/astral-sh/uv) in `./uv` folder
-- install python in `./python`
-- install dependencies in `requirements.txt`
-- run the Python project
-
-Note: uv primarily supports macOS (both Apple Silicon and x86_64), Linux (x86_64), and Windows (x86_64).
