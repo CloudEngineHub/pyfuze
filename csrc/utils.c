@@ -18,6 +18,7 @@
 #include "libc/nt/runtime.h"
 #include "libc/nt/synchronization.h"
 #include "libc/nt/enum/processcreationflags.h"
+#include "libc/nt/createfile.h"
 #include "libc/errno.h"
 
 #include "config.h"
@@ -105,7 +106,7 @@ void find_python_path() {
         DIR *d = opendir(python_dir);
         struct dirent *ent;
         if (d) {
-            while ((ent = readdir(d))) {
+            while (ent = readdir(d)) {
                 if (ent->d_name[0] == '.') continue;
                 path_join(python_path, sizeof(python_path), python_dir, ent->d_name);
                 break;
@@ -116,9 +117,9 @@ void find_python_path() {
 }
 
 Config *read_config() {
-    Config *config = parse_config("/zip/config.txt");
+    Config *config = parse_config("/zip/.pyfuze_config.txt");
     if (!config) {
-        exit_with_message("Failed to parse config.txt");
+        exit_with_message("Failed to parse .pyfuze_config.txt");
     }
 
     strcpy(config_unzip_path, get_config_value(config, "unzip_path"));
@@ -249,37 +250,33 @@ void set_env(const char *key, const char *value) {
 }
 
 void unzip() {
-    if (!path_exists(dot_python_version_path) && path_exists("/zip/.python-version")) {
-        console_log("found /zip/.python-version, copying to %s ...\n", dot_python_version_path);
-        copy_file("/zip/.python-version", dot_python_version_path);
+    DIR *d = opendir("/zip");
+    struct dirent *ent;
+    if (!d) exit_with_message("opendir /zip failed");
+    char src_path[PATH_MAX] = {0};
+    char dst_path[PATH_MAX] = {0};
+    struct stat st;
+    while (ent = readdir(d)) {
+        if (strcmp(ent->d_name, ".") == 0) continue;
+        if (strcmp(ent->d_name, "..") == 0) continue;
+        if (strcmp(ent->d_name, ".cosmo") == 0) continue;
+        if (strcmp(ent->d_name, ".pyfuze_config.txt") == 0) continue;
+        path_join(dst_path, sizeof(dst_path), config_unzip_path, ent->d_name);
+        if (path_exists(dst_path)) continue;
+        path_join(src_path, sizeof(src_path), "/zip", ent->d_name);
+        if (stat(src_path, &st) != 0) {
+            closedir(d);
+            exit_with_message("stat %s failed", src_path);
+        }
+        if (S_ISDIR(st.st_mode)) {
+            console_log("found directory %s, copying to %s ...\n", src_path, dst_path);
+            copy_directory(src_path, dst_path);
+        } else if (S_ISREG(st.st_mode)) {
+            console_log("found file %s, copying to %s ...\n", src_path, dst_path);
+            copy_file(src_path, dst_path);
+        }
     }
-    if (!path_exists(uv_dir) && path_exists("/zip/uv")) {
-        console_log("found /zip/uv, copying to %s ...\n", uv_dir);
-        copy_directory("/zip/uv", uv_dir);
-    }
-    if (!path_exists(python_dir) && path_exists("/zip/python")) {
-        console_log("found /zip/python, copying to %s ...\n", python_dir);
-    }
-    if (!path_exists(pyproject_toml_path) && path_exists("/zip/pyproject.toml")) {
-        console_log("found /zip/pyproject.toml, copying to %s ...\n", pyproject_toml_path);
-        copy_file("/zip/pyproject.toml", pyproject_toml_path);
-    }
-    if (!path_exists(requirements_txt_path) && path_exists("/zip/requirements.txt")) {
-        console_log("found /zip/requirements.txt, copying to %s ...\n", requirements_txt_path);
-        copy_file("/zip/requirements.txt", requirements_txt_path);
-    }
-    if (!path_exists(uv_lock_path) && path_exists("/zip/uv.lock")) {
-        console_log("found /zip/uv.lock, copying to %s ...\n", uv_lock_path);
-        copy_file("/zip/uv.lock", uv_lock_path);
-    }
-    if (!path_exists(venv_path) && path_exists("/zip/.venv")) {
-        console_log("found /zip/.venv, copying to %s ...\n", venv_path);
-        copy_directory("/zip/.venv", venv_path);
-    }
-    if (!path_exists(src_dir) && path_exists("/zip/src")) {
-        console_log("found /zip/src, copying to %s ...\n", src_dir);
-        copy_directory("/zip/src", src_dir);
-    }
+    closedir(d);
 }
 
 void run_command_windows_utf16(char16_t *cmd) {
@@ -291,11 +288,9 @@ void run_command_windows_utf16(char16_t *cmd) {
     si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
     si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
 
-    // don't inherit stdin
-    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
-    if (hIn && hIn != INVALID_HANDLE_VALUE) {
-        SetHandleInformation(hIn, HANDLE_FLAG_INHERIT, 0);
-    }
+    HANDLE hNullIn = CreateFile(u"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+    SetHandleInformation(hNullIn, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+    si.hStdInput = hNullIn;
 
     struct NtProcessInformation pi = {0};
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import time
 import zipfile
 from pathlib import Path
 from traceback import print_exc
@@ -168,7 +167,7 @@ def cli(
                 zf.write(uv_lock, "uv.lock")
                 click.secho("✓ wrote uv.lock", fg="green")
 
-            # write config.txt file
+            # write .pyfuze_config.txt file
             if python_project.is_file():
                 entry = python_project.name
             win_gui_num = 1 if win_gui else 0
@@ -182,8 +181,8 @@ uv_install_script_unix={uv_install_script_unix}
                 for e in env:
                     key, value = e.split("=", 1)
                     config_text += f"env_{key}={value}\n"
-            zf.writestr("config.txt", config_text)
-            click.secho("✓ wrote config.txt", fg="green")
+            zf.writestr(".pyfuze_config.txt", config_text)
+            click.secho("✓ wrote .pyfuze_config.txt", fg="green")
 
             # copy python project files
             if python_project.is_file():
