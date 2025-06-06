@@ -279,18 +279,20 @@ void unzip() {
     closedir(d);
 }
 
-void run_command_windows_utf16(char16_t *cmd) {
+void run_command_windows_utf16(char16_t *cmd, int no_stdin) {
     struct NtStartupInfo si = {0};
     si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESTDHANDLES;
+    if (no_stdin) {
+        si.dwFlags = STARTF_USESTDHANDLES;
 
-    // inherit stdout and stderr
-    si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+        // inherit stdout and stderr
+        si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+        si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
 
-    HANDLE hNullIn = CreateFile(u"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
-    SetHandleInformation(hNullIn, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
-    si.hStdInput = hNullIn;
+        HANDLE hNullIn = CreateFile(u"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+        SetHandleInformation(hNullIn, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+        si.hStdInput = hNullIn;
+    }
 
     struct NtProcessInformation pi = {0};
 
@@ -301,7 +303,7 @@ void run_command_windows_utf16(char16_t *cmd) {
             cmd,             // Command line
             NULL,            // Process handle not inheritable
             NULL,            // Thread handle not inheritable
-            1,               // Set handle inheritance to TRUE
+            no_stdin,        // handle inheritance
             creation_flags,  // creation flags
             NULL,            // Use parent's environment block
             NULL,            // Use parent's starting directory
@@ -319,7 +321,13 @@ void run_command_windows_utf16(char16_t *cmd) {
 
 void run_command_windows(char *cmd) {
     char16_t *cmdline_utf16 = utf8to16(cmd, -1, 0);
-    run_command_windows_utf16(cmdline_utf16);
+    run_command_windows_utf16(cmdline_utf16, 1);
+    free(cmdline_utf16);
+}
+
+void run_command_windows_normal(char *cmd) {
+    char16_t *cmdline_utf16 = utf8to16(cmd, -1, 0);
+    run_command_windows_utf16(cmdline_utf16, 0);
     free(cmdline_utf16);
 }
 
@@ -414,7 +422,7 @@ void uv_run(int gui) {
         } else {
             snprintf(cmdline, sizeof(cmdline), "\"%s\" run --project %s --directory %s --script %s", uv_path, config_unzip_path, src_dir, config_entry);
         }
-        run_command_windows(cmdline);
+        run_command_windows_normal(cmdline);
     } else {
         RUN_COMMAND_UNIX(uv_path, "run", "--project", config_unzip_path, "--directory", src_dir, "--script", config_entry);
     }
