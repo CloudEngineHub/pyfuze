@@ -7,6 +7,8 @@
 
 pyfuze packages your Python project into a standalone self-extracting Actually Portable Executable ([APE](https://justine.lol/ape.html)).
 
+This project is primarily built on top of [cosmopolitan](https://github.com/jart/cosmopolitan) and [uv](https://github.com/astral-sh/uv).
+
 ## Packaging Modes
 
 | Mode                                | Standalone | Cross-Platform            |         Size          |
