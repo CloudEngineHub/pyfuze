@@ -27,8 +27,10 @@ int alloc_console = 0;
 char uv_dir[PATH_MAX] = {0};
 char uv_path[PATH_MAX] = {0};
 char cache_dir[PATH_MAX] = {0};
+char dot_python_version_path[PATH_MAX] = {0};
 char python_dir[PATH_MAX] = {0};
 char python_path[PATH_MAX] = {0};
+char venv_path[PATH_MAX] = {0};
 char pyvenv_cfg_path[PATH_MAX] = {0};
 char src_dir[PATH_MAX] = {0};
 char pyproject_toml_path[PATH_MAX] = {0};
@@ -44,6 +46,45 @@ int config_win_gui = 0;
 Config *config = NULL;
 
 char cmdline[8192];
+
+void windows_attach_or_alloc_console() {
+    if (IsWindows() && config_win_gui && !attach_console) {
+        attach_console = 1;
+        if (!AttachConsole(kNtAttachParentProcess)) {
+            alloc_console = 1;
+            AllocConsole();
+        }
+        freopen("CONOUT$", "w", stdout);
+        freopen("CONOUT$", "w", stderr);
+    }
+}
+
+void console_log(const char *format, ...) {
+    windows_attach_or_alloc_console();
+    va_list args;
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+}
+
+void close_console() {
+    fclose(stdout);
+    fclose(stderr);
+    FreeConsole();
+}
+
+void exit_with_message(const char *format, ...) {
+    config_win_gui = 1;
+    windows_attach_or_alloc_console();
+    va_list args;
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+    printf("\nPress Enter to exit...\n");
+    freopen("CONIN$", "r", stdin);
+    getchar();
+    exit(1);
+}
 
 int path_exists(const char *filename) {
     return access(filename, F_OK) == 0;
@@ -75,8 +116,7 @@ void find_python_path() {
 void read_config() {
     config = parse_config("/tmp/config.txt");
     if (!config) {
-        printf("Failed to parse config.txt\n");
-        exit(1);
+        exit_with_message("Failed to parse config.txt");
     }
 
     strcpy(config_unzip_path, get_config_value(config, "unzip_path"));
@@ -88,7 +128,9 @@ void read_config() {
     path_join(uv_dir, sizeof(uv_dir), config_unzip_path, "uv");
     path_join(uv_path, sizeof(uv_path), uv_dir, IsWindows() ? "uv.exe" : "uv");
     path_join(cache_dir, sizeof(cache_dir), config_unzip_path, "cache");
+    path_join(dot_python_version_path, sizeof(dot_python_version_path), config_unzip_path, ".python-version");
     path_join(python_dir, sizeof(python_dir), config_unzip_path, "python");
+    path_join(venv_path, sizeof(venv_path), config_unzip_path, ".venv");
     path_join(pyvenv_cfg_path, sizeof(pyvenv_cfg_path), config_unzip_path, ".venv/pyvenv.cfg");
     path_join(src_dir, sizeof(src_dir), config_unzip_path, "src");
     path_join(pyproject_toml_path, sizeof(pyproject_toml_path), config_unzip_path, "pyproject.toml");
@@ -100,19 +142,19 @@ void copy_file(const char *src_path, const char *dst_path) {
     struct stat st;
     int src_fd, dst_fd;
 
-    if ((src_fd = open(src_path, O_RDONLY)) == -1) exit(1);
+    if ((src_fd = open(src_path, O_RDONLY)) == -1) exit_with_message("Failed to open %s", src_path);
     fstat(src_fd, &st);
 
     if ((dst_fd = creat(dst_path, st.st_mode)) == -1) {
         close(src_fd);
-        exit(1);
+        exit_with_message("Failed to create %s", dst_path);
     }
 
     ssize_t result = copyfd(src_fd, dst_fd, -1);
     close(src_fd);
     close(dst_fd);
 
-    if (result == -1) exit(1);
+    if (result == -1) exit_with_message("Failed to copy %s to %s", src_path, dst_path);
 }
 
 void mkdir_recursive(const char *path) {
@@ -130,33 +172,27 @@ void mkdir_recursive(const char *path) {
         if (*p == '/') {
             *p = 0;
             if (mkdir(tmp, 0755) != 0) {
-                if (errno != EEXIST) {
-                    printf("mkdir %s failed\n", tmp);
-                    exit(1);
-                }
+                if (errno != EEXIST) exit_with_message("mkdir %s failed", tmp);
             }
             *p = '/';
         }
     }
 
     if (mkdir(tmp, 0755) != 0) {
-        if (errno != EEXIST) {
-            printf("mkdir %s failed\n", tmp);
-            exit(1);
-        }
+        if (errno != EEXIST) exit_with_message("mkdir %s failed", tmp);
     }
 }
 
 void copy_directory(const char *src_dir, const char *dst_dir) {
     struct stat st;
-    if (stat(src_dir, &st) != 0) exit(1);
+    if (stat(src_dir, &st) != 0) exit_with_message("stat %s failed", src_dir);
 
     if (!path_exists(dst_dir)) {
         mkdir_recursive(dst_dir);
     }
 
     DIR *dir = opendir(src_dir);
-    if (!dir) exit(1);
+    if (!dir) exit_with_message("opendir %s failed", src_dir);
 
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
@@ -171,7 +207,7 @@ void copy_directory(const char *src_dir, const char *dst_dir) {
 
         if (stat(src_path, &st) != 0) {
             closedir(dir);
-            exit(1);
+            exit_with_message("stat %s failed", src_path);
         }
 
         if (S_ISDIR(st.st_mode)) {
@@ -182,35 +218,6 @@ void copy_directory(const char *src_dir, const char *dst_dir) {
     }
 
     closedir(dir);
-}
-
-void windows_attach_or_alloc_console() {
-    if (IsWindows() && config_win_gui && !attach_console) {
-        attach_console = 1;
-        if (!AttachConsole(kNtAttachParentProcess)) {
-            alloc_console = 1;
-            if (!AllocConsole()) {
-                printf("Failed to allocate console\n");
-                exit(1);
-            }
-        }
-        freopen("CONOUT$", "w", stdout);
-        freopen("CONOUT$", "w", stderr);
-    }
-}
-
-void console_log(const char *format, ...) {
-    windows_attach_or_alloc_console();
-    va_list args;
-    va_start(args, format);
-    vprintf(format, args);
-    va_end(args);
-}
-
-void close_console() {
-    fclose(stdout);
-    fclose(stderr);
-    FreeConsole();
 }
 
 void set_env(const char *key, const char *value) {
@@ -237,6 +244,41 @@ void set_config_env() {
     }
 }
 
+void unzip() {
+    mkdir_recursive(config_unzip_path);
+    if (!path_exists(dot_python_version_path) && path_exists("/zip/.python-version")) {
+        console_log("found /zip/.python-version, copying to %s ...\n", dot_python_version_path);
+        copy_file("/zip/.python-version", dot_python_version_path);
+    }
+    if (!path_exists(uv_dir) && path_exists("/zip/uv")) {
+        console_log("found /zip/uv, copying to %s ...\n", uv_dir);
+        copy_directory("/zip/uv", uv_dir);
+    }
+    if (!path_exists(python_dir) && path_exists("/zip/python")) {
+        console_log("found /zip/python, copying to %s ...\n", python_dir);
+    }
+    if (!path_exists(pyproject_toml_path) && path_exists("/zip/pyproject.toml")) {
+        console_log("found /zip/pyproject.toml, copying to %s ...\n", pyproject_toml_path);
+        copy_file("/zip/pyproject.toml", pyproject_toml_path);
+    }
+    if (!path_exists(requirements_txt_path) && path_exists("/zip/requirements.txt")) {
+        console_log("found /zip/requirements.txt, copying to %s ...\n", requirements_txt_path);
+        copy_file("/zip/requirements.txt", requirements_txt_path);
+    }
+    if (!path_exists(uv_lock_path) && path_exists("/zip/uv.lock")) {
+        console_log("found /zip/uv.lock, copying to %s ...\n", uv_lock_path);
+        copy_file("/zip/uv.lock", uv_lock_path);
+    }
+    if (!path_exists(venv_path) && path_exists("/zip/.venv")) {
+        console_log("found /zip/.venv, copying to %s ...\n", venv_path);
+        copy_directory("/zip/.venv", venv_path);
+    }
+    if (!path_exists(src_dir) && path_exists("/zip/src")) {
+        console_log("found /zip/src, copying to %s ...\n", src_dir);
+        copy_directory("/zip/src", src_dir);
+    }
+}
+
 void run_command_windows_utf16(char16_t *cmd) {
     struct NtStartupInfo si = {0};
     si.cb = sizeof(si);
@@ -256,8 +298,7 @@ void run_command_windows_utf16(char16_t *cmd) {
             &si,             // Pointer to STARTUPINFO structure
             &pi              // Pointer to PROCESS_INFORMATION structure
             )) {
-        printf("CreateProcess failed: %lu\n", GetLastError());
-        exit(1);
+        exit_with_message("CreateProcess failed: %lu", GetLastError());
     }
 
     WaitForSingleObject(pi.hProcess, 0xFFFFFFFF);
@@ -275,20 +316,9 @@ void run_command_windows(char *cmd) {
 void run_command_unix(const char *const argv[]) {
     pid_t pid;
     int status;
-    if (posix_spawnp(&pid, argv[0], NULL, NULL, (char *const *)argv, environ) != 0) {
-        printf("posix_spawnp at %s failed\n", argv[0]);
-        exit(1);
-    }
-
-    if (waitpid(pid, &status, 0) == -1) {
-        printf("waitpid at %s failed\n", argv[0]);
-        exit(1);
-    }
-
-    if (!WIFEXITED(status)) {
-        printf("command %s did not exit\n", argv[0]);
-        exit(1);
-    }
+    if (posix_spawnp(&pid, argv[0], NULL, NULL, (char *const *)argv, environ) != 0) exit_with_message("posix_spawnp at %s failed", argv[0]);
+    if (waitpid(pid, &status, 0) == -1) exit_with_message("waitpid at %s failed", argv[0]);
+    if (!WIFEXITED(status)) exit_with_message("command %s did not exit", argv[0]);
 }
 
 #define RUN_COMMAND_UNIX(...) \
