@@ -19,6 +19,11 @@ from .utils import set_pe_subsystem_console
     type=click.Path(exists=True, dir_okay=True, path_type=Path),
 )
 @click.option(
+    "--unzip-path",
+    "unzip_path",
+    help="Unzip path [default: /tmp/<project_name>]",
+)
+@click.option(
     "--python",
     "python_version",
     help="Add .python-version file",
@@ -84,23 +89,6 @@ from .utils import set_pe_subsystem_console
     help="UV installation script URI for Unix",
 )
 @click.option(
-    "--bin-name",
-    "bin_name",
-    default="pyfuze.com",
-    show_default=True,
-    help="Name of the executable file",
-)
-@click.option(
-    "--dir-name",
-    "dir_name",
-    help="Name of the output directory (defaults to project name)",
-)
-@click.option(
-    "--zip-name",
-    "zip_name",
-    help="Name of the output zip file (defaults to project name)",
-)
-@click.option(
     "--debug",
     "-d",
     is_flag=True,
@@ -109,6 +97,7 @@ from .utils import set_pe_subsystem_console
 @click.version_option(__version__, "-v", "--version", prog_name="pyfuze")
 def cli(
     python_project: Path,
+    unzip_path: str,
     python_version: str | None,
     requirements: str | None,
     pyproject: Path | None,
@@ -120,9 +109,6 @@ def cli(
     env: tuple[str, ...],
     uv_install_script_windows: str,
     uv_install_script_unix: str,
-    bin_name: str,
-    dir_name: str | None,
-    zip_name: str | None,
     debug: bool,
 ) -> None:
     """pyfuze — package Python scripts with dependencies."""
@@ -130,151 +116,129 @@ def cli(
         os.environ["PYFUZE_DEBUG"] = "1"
 
     try:
+        # create build directory
         build_dir = Path("build").resolve()
         python_project = python_project.resolve()
-        dir_name = dir_name or python_project.stem
-        output_folder = (build_dir / dir_name).resolve()
-        shutil.rmtree(output_folder, ignore_errors=True)
-        output_folder.mkdir(parents=True, exist_ok=True)
-
-        dist_dir = Path("dist").resolve()
-        dist_dir.mkdir(parents=True, exist_ok=True)
+        project_name = python_project.stem
+        if not unzip_path:
+            unzip_path = f"/tmp/{project_name}"
 
         # copy the stub launcher
         src_com = (Path(__file__).parent / "pyfuze.com").resolve()
-        shutil.copy2(src_com, output_folder / bin_name)
-        click.secho(f"✓ copied {bin_name}", fg="green")
+        dst_com = build_dir / f"{project_name}.com"
+        shutil.copy2(src_com, dst_com)
+        dst_com.chmod(0o755)
+        click.secho(f"✓ copied {dst_com}", fg="green")
 
-        # write .python-version
-        if python_version:
-            (output_folder / ".python-version").write_text(python_version)
-            click.secho(f"✓ wrote .python-version ({python_version})", fg="green")
+        if win_gui:
+            click.secho(f"✓ configured as Windows GUI application", fg="green")
+        else:
+            set_pe_subsystem_console(dst_com)
+            click.secho(f"✓ configured as console application", fg="green")
 
-        # write requirements.txt
-        if requirements:
-            req_path = Path(requirements).resolve()
-            if req_path.is_file():
-                shutil.copy2(req_path, output_folder / "requirements.txt")
-                if req_path.name != "requirements.txt":
-                    click.secho(
-                        f"✓ copied {req_path.name} to requirements.txt", fg="green"
-                    )
+        # add contents to /zip
+        with zipfile.ZipFile(dst_com, "a", zipfile.ZIP_DEFLATED) as zf:
+            # write .python-version
+            if python_version:
+                zf.writestr(".python-version", python_version)
+                click.secho(f"✓ wrote .python-version ({python_version})", fg="green")
+
+            # write requirements.txt
+            if requirements:
+                req_path = Path(requirements).resolve()
+                if req_path.is_file():
+                    reqs = req_path.read_text()
+                    req_list = [r.strip() for r in reqs.splitlines() if r.strip()]
                 else:
-                    click.secho("✓ copied requirements.txt", fg="green")
-            else:
-                req_list = [r.strip() for r in requirements.split(",")]
-                (output_folder / "requirements.txt").write_text("\n".join(req_list))
+                    req_list = [r.strip() for r in requirements.split(",")]
+                    reqs = "\n".join(req_list)
+                zf.writestr("requirements.txt", reqs)
                 click.secho(
-                    f"✓ wrote requirements.txt ({len(req_list)} packages)", fg="green"
+                    f"✓ wrote requirements.txt ({len(req_list)} packages)",
+                    fg="green",
                 )
 
-        # write pyproject.toml
-        if pyproject:
-            shutil.copy2(pyproject, output_folder / "pyproject.toml")
-            if pyproject.name != "pyproject.toml":
-                click.secho(f"✓ copied {pyproject.name} to pyproject.toml", fg="green")
-            else:
-                click.secho("✓ copied pyproject.toml", fg="green")
+            # write pyproject.toml
+            if pyproject:
+                zf.write(pyproject, "pyproject.toml")
+                click.secho("✓ wrote pyproject.toml", fg="green")
 
-        # copy uv.lock file
-        if uv_lock:
-            shutil.copy2(uv_lock, output_folder / "uv.lock")
-            if uv_lock.name != "uv.lock":
-                click.secho(f"✓ copied {uv_lock.name} to uv.lock", fg="green")
-            else:
-                click.secho("✓ copied uv.lock", fg="green")
+            # write uv.lock file
+            if uv_lock:
+                zf.write(uv_lock, "uv.lock")
+                click.secho("✓ wrote uv.lock", fg="green")
 
-        # create config.txt file
-        if python_project.is_file():
-            entry = python_project.name
-        win_gui_num = 1 if win_gui else 0
-        text = f"""entry={entry}
+            # write config.txt file
+            if python_project.is_file():
+                entry = python_project.name
+            win_gui_num = 1 if win_gui else 0
+            config_text = f"""unzip_path={unzip_path}
+entry={entry}
 win_gui={win_gui_num}
 uv_install_script_windows={uv_install_script_windows}
 uv_install_script_unix={uv_install_script_unix}
 """
-        if env:
-            for e in env:
-                key, value = e.split("=", 1)
-                text += f"env_{key}={value}\n"
-        (output_folder / "config.txt").write_text(text)
-        click.secho("✓ wrote config.txt", fg="green")
+            if env:
+                for e in env:
+                    key, value = e.split("=", 1)
+                    config_text += f"env_{key}={value}\n"
+            zf.writestr("config.txt", config_text)
+            click.secho("✓ wrote config.txt", fg="green")
 
-        # copy python project files
-        src_dir = (output_folder / "src").resolve()
-        src_dir.mkdir(parents=True, exist_ok=True)
+            # copy python project files
+            if python_project.is_file():
+                zf.write(python_project, f"src/{python_project.name}")
+            elif python_project.is_dir():
+                exclude_path_set = set()
+                if exclude:
+                    for e in exclude:
+                        exclude_path_set.add((python_project / e).resolve())
+                for pyfile in python_project.rglob("*.py"):
+                    pyfile = pyfile.resolve()
+                    if pyfile.is_file() and (
+                        pyfile.parent == python_project
+                        or (pyfile.parent / "__init__.py").exists()
+                    ):
+                        if pyfile in exclude_path_set:
+                            continue
+                        zf.write(pyfile, f"src/{pyfile.relative_to(python_project)}")
+            else:
+                click.secho(
+                    f"Warning: Source path {python_project} does not exist", fg="yellow"
+                )
 
-        if python_project.is_dir():
-            exclude_path_set = set()
-            if exclude:
-                for e in exclude:
-                    exclude_path_set.add((python_project / e).resolve())
-            for pyfile in python_project.rglob("*.py"):
-                pyfile = pyfile.resolve()
-                if pyfile.is_file() and (
-                    pyfile.parent == python_project
-                    or (pyfile.parent / "__init__.py").exists()
-                ):
-                    if pyfile in exclude_path_set:
-                        continue
-                    dest_path = src_dir / pyfile.relative_to(python_project)
-                    dest_path.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(pyfile, dest_path)
-        else:
-            shutil.copy2(python_project, src_dir / python_project.name)
+            click.secho(f"✓ copied {python_project.name} to src folder", fg="green")
 
-        click.secho(f"✓ copied {python_project.name} to src folder", fg="green")
-
-        # handle additional includes
-        if include:
-            for include_item in include:
-                if "::" in include_item:
-                    source, destination = include_item.rsplit("::", 1)
-                else:
-                    source = include_item
-                    destination = Path(source).name
-
-                source_path = Path(source)
-                if not source_path.exists():
-                    click.secho(
-                        f"Warning: Source path {source} does not exist", fg="yellow"
-                    )
-                    continue
-
-                dest_path = (src_dir / destination).resolve()
-                dest_path_rel = dest_path.relative_to(output_folder)
-                dest_path.parent.mkdir(parents=True, exist_ok=True)
-                if source_path.is_file():
-                    shutil.copy2(source_path, dest_path)
-                    click.secho(
-                        f"✓ copied {source_path.name} to {dest_path_rel}", fg="green"
-                    )
-                elif source_path.is_dir():
-                    shutil.copytree(source_path, dest_path, dirs_exist_ok=True)
-                    click.secho(
-                        f"✓ copied directory {source_path.name} to {dest_path_rel}",
-                        fg="green",
-                    )
-
-        # build the zip
-        zip_name = zip_name or (python_project.stem + ".zip")
-        zip_path = dist_dir / zip_name
-        zip_path.unlink(missing_ok=True)
-
-        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for root, _, files in os.walk(output_folder):
-                for name in files:
-                    file_path = Path(root) / name
-                    rel_path = file_path.relative_to(build_dir)
-                    if name == bin_name:
-                        info = zipfile.ZipInfo(str(rel_path), time.localtime())
-                        info.create_system = 3  # Unix
-                        info.external_attr = 0o100755 << 16
-                        zf.writestr(info, file_path.read_bytes(), zipfile.ZIP_DEFLATED)
+            # handle additional includes
+            if include:
+                for include_item in include:
+                    if "::" in include_item:
+                        source, destination = include_item.rsplit("::", 1)
                     else:
-                        zf.write(file_path, rel_path)
+                        source = include_item
+                        destination = Path(source).name
 
-        click.secho(f"Successfully packaged: {zip_path}", fg="green", bold=True)
+                    source_path = Path(source)
+                    if not source_path.exists():
+                        click.secho(
+                            f"Warning: Source path {source} does not exist", fg="yellow"
+                        )
+                        continue
+
+                    arcname = str(Path("src") / destination)
+                    if source_path.is_file():
+                        zf.write(source_path, arcname)
+                    elif source_path.is_dir():
+                        for item in source_path.rglob("*"):
+                            if item.is_file():
+                                zf.write(
+                                    item,
+                                    str(Path("src") / item.relative_to(source_path)),
+                                )
+
+                    click.secho(f"✓ copied {source_path} to {arcname}", fg="green")
+
+        click.secho(f"Successfully packaged: {dst_com}", fg="green", bold=True)
 
     except Exception as exc:
         if os.environ.get("PYFUZE_DEBUG") == "1":

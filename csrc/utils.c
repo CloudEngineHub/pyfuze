@@ -9,6 +9,7 @@
 #include "stdarg.h"
 #include "spawn.h"
 #include "sys/stat.h"
+#include "windowsesque.h"
 
 #include "libc/dce.h"
 #include "libc/x/x.h"
@@ -24,26 +25,25 @@
 int attach_console = 0;
 int alloc_console = 0;
 
-char uv_dir[PATH_MAX] = {0};
+const char *uv_dir = "uv";
+const char *cache_dir = "cache";
+const char *dot_python_version_path = ".python-version";
+const char *python_dir = "python";
+const char *venv_path = ".venv";
+const char *pyvenv_cfg_path = ".venv/pyvenv.cfg";
+const char *src_dir = "src";
+const char *pyproject_toml_path = "pyproject.toml";
+const char *requirements_txt_path = "requirements.txt";
+const char *uv_lock_path = "uv.lock";
+
 char uv_path[PATH_MAX] = {0};
-char cache_dir[PATH_MAX] = {0};
-char dot_python_version_path[PATH_MAX] = {0};
-char python_dir[PATH_MAX] = {0};
 char python_path[PATH_MAX] = {0};
-char venv_path[PATH_MAX] = {0};
-char pyvenv_cfg_path[PATH_MAX] = {0};
-char src_dir[PATH_MAX] = {0};
-char pyproject_toml_path[PATH_MAX] = {0};
-char requirements_txt_path[PATH_MAX] = {0};
-char uv_lock_path[PATH_MAX] = {0};
 
 char config_unzip_path[PATH_MAX] = {0};
 char config_uv_install_script_windows[PATH_MAX] = {0};
 char config_uv_install_script_unix[PATH_MAX] = {0};
 char config_entry[PATH_MAX] = {0};
 int config_win_gui = 0;
-
-Config *config = NULL;
 
 char cmdline[8192];
 
@@ -68,6 +68,8 @@ void console_log(const char *format, ...) {
 }
 
 void close_console() {
+    attach_console = 0;
+    alloc_console = 0;
     fclose(stdout);
     fclose(stderr);
     FreeConsole();
@@ -113,8 +115,8 @@ void find_python_path() {
     }
 }
 
-void read_config() {
-    config = parse_config("/tmp/config.txt");
+Config *read_config() {
+    Config *config = parse_config("/zip/config.txt");
     if (!config) {
         exit_with_message("Failed to parse config.txt");
     }
@@ -125,17 +127,31 @@ void read_config() {
     strcpy(config_entry, get_config_value(config, "entry"));
     config_win_gui = atoi(get_config_value(config, "win_gui"));
 
-    path_join(uv_dir, sizeof(uv_dir), config_unzip_path, "uv");
+    return config;
+}
+
+void init() {
+    Config *config = read_config();
+
     path_join(uv_path, sizeof(uv_path), uv_dir, IsWindows() ? "uv.exe" : "uv");
-    path_join(cache_dir, sizeof(cache_dir), config_unzip_path, "cache");
-    path_join(dot_python_version_path, sizeof(dot_python_version_path), config_unzip_path, ".python-version");
-    path_join(python_dir, sizeof(python_dir), config_unzip_path, "python");
-    path_join(venv_path, sizeof(venv_path), config_unzip_path, ".venv");
-    path_join(pyvenv_cfg_path, sizeof(pyvenv_cfg_path), config_unzip_path, ".venv/pyvenv.cfg");
-    path_join(src_dir, sizeof(src_dir), config_unzip_path, "src");
-    path_join(pyproject_toml_path, sizeof(pyproject_toml_path), config_unzip_path, "pyproject.toml");
-    path_join(requirements_txt_path, sizeof(requirements_txt_path), config_unzip_path, "requirements.txt");
-    path_join(uv_lock_path, sizeof(uv_lock_path), config_unzip_path, "uv.lock");
+    mkdir_recursive(config_unzip_path);
+    chdir(config_unzip_path);
+
+    // set environment variables
+    set_env("UV_CACHE_DIR", cache_dir);
+    set_env("UV_UNMANAGED_INSTALL", uv_dir);
+
+    for (size_t i = 0; i < config->count; i++) {
+        char *key = config->items[i].key;
+        char *value = config->items[i].value;
+        if (strncmp(key, "env_", 4) != 0) {
+            continue;
+        }
+        key = key + 4;
+        set_env(key, value);
+    }
+
+    free_config(config);
 }
 
 void copy_file(const char *src_path, const char *dst_path) {
@@ -232,20 +248,7 @@ void set_env(const char *key, const char *value) {
     }
 }
 
-void set_config_env() {
-    for (size_t i = 0; i < config->count; i++) {
-        char *key = config->items[i].key;
-        char *value = config->items[i].value;
-        if (strncmp(key, "env_", 4) != 0) {
-            continue;
-        }
-        key = key + 4;
-        set_env(key, value);
-    }
-}
-
 void unzip() {
-    mkdir_recursive(config_unzip_path);
     if (!path_exists(dot_python_version_path) && path_exists("/zip/.python-version")) {
         console_log("found /zip/.python-version, copying to %s ...\n", dot_python_version_path);
         copy_file("/zip/.python-version", dot_python_version_path);
@@ -282,16 +285,28 @@ void unzip() {
 void run_command_windows_utf16(char16_t *cmd) {
     struct NtStartupInfo si = {0};
     si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESTDHANDLES;
+
+    // inherit stdout and stderr
+    si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+
+    // don't inherit stdin
+    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+    if (hIn && hIn != INVALID_HANDLE_VALUE) {
+        SetHandleInformation(hIn, HANDLE_FLAG_INHERIT, 0);
+    }
+
     struct NtProcessInformation pi = {0};
 
-    uint32_t creation_flags = config_win_gui ? kNtCreateNoWindow : 0;
+    uint32_t creation_flags = (config_win_gui && !attach_console) ? kNtCreateNoWindow : 0;
 
     if (!CreateProcess(
             NULL,            // No module name (use command line)
             cmd,             // Command line
             NULL,            // Process handle not inheritable
             NULL,            // Thread handle not inheritable
-            0,               // Set handle inheritance to FALSE
+            1,               // Set handle inheritance to TRUE
             creation_flags,  // creation flags
             NULL,            // Use parent's environment block
             NULL,            // Use parent's starting directory

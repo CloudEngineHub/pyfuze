@@ -30,20 +30,15 @@ PERFORMANCE OF THIS SOFTWARE.
 void GetMessage() {}
 
 int main(int argc, char *argv[]) {
-    read_config();
+    // read config, cd to unzip_path and set environment variables
+    init();
 
     // unzip contents if not exists
     unzip();
-    chdir(config_unzip_path);
-
-    // set environment variables
-    set_env("UV_CACHE_DIR", cache_dir);
-    set_env("UV_UNMANAGED_INSTALL", uv_dir);
-    set_config_env();
 
     // install uv
     if (!path_exists(uv_path)) {
-        console_log("uv not found, installing to %s ...\n", uv_dir);
+        console_log("uv not found, installing...\n");
         install_uv();
 
         if (!path_exists(uv_path)) exit_with_message("ERROR: uv installation failed");
@@ -52,7 +47,7 @@ int main(int argc, char *argv[]) {
     // install python
     find_python_path();
     if (python_path[0] == '\0') {
-        console_log("python not found, installing to %s ...\n", python_dir);
+        console_log("python not found, installing...\n");
         install_python();
 
         find_python_path();
