@@ -139,9 +139,6 @@ def download(
     env: tuple[str, ...],
     uv_install_script_windows: str,
     uv_install_script_unix: str,
-    include_uv: bool,
-    include_python: bool,
-    include_deps: bool,
 ) -> None:
     os.chdir(dest_dir)
 
@@ -152,21 +149,25 @@ def download(
         key, value = e.split("=", 1)
         os.environ[key] = value
 
-    if include_uv:
-        download_uv(uv_install_script_windows, uv_install_script_unix)
-        click.secho(f"✓ downloaded uv", fg="green")
-    if include_python:
-        download_python()
-        click.secho(f"✓ downloaded python", fg="green")
-    if include_deps:
-        download_deps()
-        click.secho(f"✓ downloaded dependencies", fg="green")
+    download_uv(uv_install_script_windows, uv_install_script_unix)
+    click.secho(f"✓ downloaded uv", fg="green")
+    download_python()
+    click.secho(f"✓ downloaded python", fg="green")
+    download_deps()
+    click.secho(f"✓ downloaded dependencies", fg="green")
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument(
     "python_project",
     type=click.Path(exists=True, dir_okay=True, path_type=Path),
+)
+@click.option(
+    "--bundle",
+    "bundle",
+    default=True,
+    show_default=True,
+    help="Bundle all dependencies in the output APE",
 )
 @click.option(
     "--output-name",
@@ -224,26 +225,6 @@ def download(
     help="Exclude path relative to the project root (repeatable)",
 )
 @click.option(
-    "--include-uv",
-    "include_uv",
-    is_flag=True,
-    help="Include uv in the output APE",
-)
-@click.option(
-    "--include-python",
-    "include_python",
-    is_flag=True,
-    help="Include python in the output APE (automatically includes uv)",
-)
-@click.option(
-    "--include-deps",
-    "include_deps",
-    is_flag=True,
-    default=True,
-    show_default=True,
-    help="Include dependencies in the output APE (automatically includes uv and python)",
-)
-@click.option(
     "--env",
     "env",
     multiple=True,
@@ -272,6 +253,7 @@ def download(
 @click.version_option(__version__, "-v", "--version", prog_name="pyfuze")
 def cli(
     python_project: Path,
+    bundle: bool,
     output_name: str,
     unzip_path: str,
     python_version: str | None,
@@ -282,9 +264,6 @@ def cli(
     win_gui: bool,
     include: tuple[str, ...],
     exclude: tuple[str, ...],
-    include_uv: bool,
-    include_python: bool,
-    include_deps: bool,
     env: tuple[str, ...],
     uv_install_script_windows: str,
     uv_install_script_unix: str,
@@ -300,8 +279,11 @@ def cli(
     unzip_path = unzip_path or f"/tmp/{project_name}"
     entry = python_project.name if python_project.is_file() else entry
     win_gui_num = 1 if win_gui else 0
-    include_uv = include_uv or include_python or include_deps
-    include_python = include_python or include_deps
+
+    click.secho(
+        f"starting packaging in {'bundle' if bundle else 'portable'} mode...",
+        fg="green",
+    )
 
     try:
         # create build directory
@@ -364,15 +346,13 @@ def cli(
         copy_includes(include, temp_dir)
 
         # download uv, python, dependencies
-        download(
-            temp_dir,
-            env,
-            uv_install_script_windows,
-            uv_install_script_unix,
-            include_uv,
-            include_python,
-            include_deps,
-        )
+        if bundle:
+            download(
+                temp_dir,
+                env,
+                uv_install_script_windows,
+                uv_install_script_unix,
+            )
 
         # add temp directory contents to output_path APE
         with zipfile.ZipFile(output_path, "a", zipfile.ZIP_DEFLATED) as zf:

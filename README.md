@@ -11,11 +11,13 @@ pyfuze packages your Python project into a standalone self-extracting Actually P
 
 | Mode                                | Standalone | Cross-Platform            |         Size          |
 |-----------------------------------|---------------------------------|--------------------------|------------------------|
-| Bundle Mode (default) | **Yes**                         | No (only runs on packaging platform) | Large                 |
-| Portable Mode | No(downloads dependencies at runtime)        | **Yes**                  | **Small**             |
+| Bundle      (default) | **Yes**                         | No (only runs on packaging platform) | Large                 |
+| Portable      | No(downloads dependencies at runtime)        | **Yes**                  | **Small**             |
 
-The mode is controlled by parameters like `--include-deps`. Please refer to the explanations in the sections below.
-
+In portable mode, the application primarily supports running on macOS (both ARM64 and AMD64), Linux (AMD64), and Windows (AMD64).
+For more details, refer to:
+- https://github.com/jart/cosmopolitan/blob/master/ape/specification.md
+- https://docs.astral.sh/uv/reference/policies/platforms/
 
 ## Install
 
@@ -32,6 +34,8 @@ Usage: pyfuze [OPTIONS] PYTHON_PROJECT
   Actually Portable Executable (APE).
 
 Options:
+  --bundle BOOLEAN                Bundle all dependencies in the output APE
+                                  [default: True]
   --output-name TEXT              Output APE name [default:
                                   <project_name>.com]
   --unzip-path TEXT               APE unzip path [default:
@@ -47,12 +51,6 @@ Options:
                                   (source[::destination]) (repeatable)
   --exclude TEXT                  Exclude path relative to the project root
                                   (repeatable)
-  --include-uv                    Include uv in the output APE
-  --include-python                Include python in the output APE
-                                  (automatically includes uv)
-  --include-deps                  Include dependencies in the output APE
-                                  (automatically includes uv and python)
-                                  [default: True]
   --env TEXT                      Add environment variables such as
                                   INSTALLER_DOWNLOAD_URL,
                                   UV_PYTHON_INSTALL_MIRROR and
