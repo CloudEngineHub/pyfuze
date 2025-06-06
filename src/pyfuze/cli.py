@@ -9,13 +9,66 @@ from traceback import print_exc
 import click
 
 from . import __version__
-from .utils import set_pe_subsystem_console
+from .utils import *
+
+
+def copy_pyfuze_com(out_path: Path, win_gui: bool) -> None:
+    pyfuze_path = (Path(__file__).parent / "pyfuze.com").resolve()
+    cp(pyfuze_path, out_path)
+
+    click.secho(f"✓ copied {out_path}", fg="green")
+
+    if win_gui:
+        click.secho(f"✓ configured as Windows GUI application", fg="green")
+    else:
+        set_pe_subsystem_console(out_path)
+        click.secho(f"✓ configured as console application", fg="green")
+
+    out_path.chmod(0o755)
+
+
+def parse_requirements(requirements: str) -> tuple[str, list[str]]:
+    req_path = Path(requirements).resolve()
+    if req_path.is_file():
+        reqs = req_path.read_text()
+        req_list = [r.strip() for r in reqs.splitlines() if r.strip()]
+    else:
+        req_list = [r.strip() for r in requirements.split(",")]
+        reqs = "\n".join(req_list)
+    return reqs, req_list
+
+
+def copy_includes(include: tuple[str, ...], dest_dir: Path) -> None:
+    for include_item in include:
+        if "::" in include_item:
+            source, destination = include_item.rsplit("::", 1)
+        else:
+            source = include_item
+            destination = Path(source).name
+
+        source_path = Path(source)
+        if not source_path.exists():
+            click.secho(f"Warning: Source path {source} does not exist", fg="yellow")
+            continue
+
+        dest_path = dest_dir / destination
+        cp(source_path, dest_path)
+
+        click.secho(
+            f"✓ copied {source_path} to {dest_path.relative_to(dest_dir.parent)}",
+            fg="green",
+        )
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument(
     "python_project",
     type=click.Path(exists=True, dir_okay=True, path_type=Path),
+)
+@click.option(
+    "--output-name",
+    "output_name",
+    help="Output name [default: <project_name>.com]",
 )
 @click.option(
     "--unzip-path",
@@ -96,6 +149,7 @@ from .utils import set_pe_subsystem_console
 @click.version_option(__version__, "-v", "--version", prog_name="pyfuze")
 def cli(
     python_project: Path,
+    output_name: str,
     unzip_path: str,
     python_version: str | None,
     requirements: str | None,
@@ -114,31 +168,25 @@ def cli(
     if debug:
         os.environ["PYFUZE_DEBUG"] = "1"
 
+    python_project = python_project.resolve()
+    project_name = python_project.stem
+    output_name = output_name or f"{project_name}.com"
+    unzip_path = unzip_path or f"/tmp/{project_name}"
+    entry = python_project.name if python_project.is_file() else entry
+    win_gui_num = 1 if win_gui else 0
+
     try:
         # create build directory
         build_dir = Path("build").resolve()
-        python_project = python_project.resolve()
-        project_name = python_project.stem
-        if not unzip_path:
-            unzip_path = f"/tmp/{project_name}"
+        build_dir.mkdir(parents=True, exist_ok=True)
 
-        # copy the stub launcher
-        src_com = (Path(__file__).parent / "pyfuze.com").resolve()
-        dst_com = build_dir / f"{project_name}.com"
-        shutil.copy2(src_com, dst_com)
-        dst_com.chmod(0o755)
-        click.secho(f"✓ copied {dst_com}", fg="green")
-
-        if win_gui:
-            click.secho(f"✓ configured as Windows GUI application", fg="green")
-        else:
-            set_pe_subsystem_console(dst_com)
-            click.secho(f"✓ configured as console application", fg="green")
+        # copy the pyfuze.com launcher
+        output_path = build_dir / output_name
+        copy_pyfuze_com(output_path, win_gui)
 
         # create temp directory
         temp_dir = build_dir / project_name
-        shutil.rmtree(temp_dir, ignore_errors=True)
-        temp_dir.mkdir(parents=True, exist_ok=True)
+        clean_folder(temp_dir)
 
         # write .python-version
         if python_version:
@@ -147,13 +195,7 @@ def cli(
 
         # write requirements.txt
         if requirements:
-            req_path = Path(requirements).resolve()
-            if req_path.is_file():
-                reqs = req_path.read_text()
-                req_list = [r.strip() for r in reqs.splitlines() if r.strip()]
-            else:
-                req_list = [r.strip() for r in requirements.split(",")]
-                reqs = "\n".join(req_list)
+            reqs, req_list = parse_requirements(requirements)
             (temp_dir / "requirements.txt").write_text(reqs)
             click.secho(
                 f"✓ wrote requirements.txt ({len(req_list)} packages)", fg="green"
@@ -161,87 +203,45 @@ def cli(
 
         # write pyproject.toml
         if pyproject:
-            shutil.copy2(pyproject, temp_dir / "pyproject.toml")
+            cp(pyproject, temp_dir / "pyproject.toml")
             click.secho(f"✓ wrote pyproject.toml", fg="green")
 
         # write uv.lock
         if uv_lock:
-            shutil.copy2(uv_lock, temp_dir / "uv.lock")
+            cp(uv_lock, temp_dir / "uv.lock")
             click.secho(f"✓ wrote uv.lock", fg="green")
 
         # write .pyfuze_config.txt
-        if python_project.is_file():
-            entry = python_project.name
-        win_gui_num = 1 if win_gui else 0
-        config_text = f"""unzip_path={unzip_path}
-entry={entry}
-win_gui={win_gui_num}
-uv_install_script_windows={uv_install_script_windows}
-uv_install_script_unix={uv_install_script_unix}
-"""
+        config_list = [
+            f"unzip_path={unzip_path}",
+            f"entry={entry}",
+            f"win_gui={win_gui_num}",
+            f"uv_install_script_windows={uv_install_script_windows}",
+            f"uv_install_script_unix={uv_install_script_unix}",
+        ]
         for e in env:
             key, value = e.split("=", 1)
-            config_text += f"env_{key}={value}\n"
+            config_list.append(f"env_{key}={value}")
+        config_text = "\n".join(config_list)
         (temp_dir / ".pyfuze_config.txt").write_text(config_text)
         click.secho("✓ wrote .pyfuze_config.txt", fg="green")
 
         # copy python project files
         src_dir = temp_dir / "src"
-        src_dir.mkdir(parents=True, exist_ok=True)
-        if python_project.is_file():
-            shutil.copy2(python_project, src_dir / python_project.name)
-        elif python_project.is_dir():
-            exclude_path_set = set()
-            if exclude:
-                for e in exclude:
-                    exclude_path_set.add((python_project / e).resolve())
-            for pyfile in python_project.rglob("*.py"):
-                pyfile = pyfile.resolve()
-                if pyfile.is_file() and (
-                    pyfile.parent == python_project
-                    or (pyfile.parent / "__init__.py").exists()
-                ):
-                    if pyfile in exclude_path_set:
-                        continue
-                    shutil.copy2(pyfile, src_dir / pyfile.relative_to(python_project))
-        else:
-            click.secho(
-                f"Warning: Source path {python_project} does not exist", fg="yellow"
-            )
-
+        exclude_path_set = {(python_project / e).resolve() for e in exclude}
+        copy_python_source(python_project, src_dir, exclude_path_set)
         click.secho(f"✓ copied {python_project.name} to src folder", fg="green")
 
-        # handle additional includes
-        for include_item in include:
-            if "::" in include_item:
-                source, destination = include_item.rsplit("::", 1)
-            else:
-                source = include_item
-                destination = Path(source).name
+        # copy additional includes
+        copy_includes(include, temp_dir)
 
-            source_path = Path(source)
-            if not source_path.exists():
-                click.secho(
-                    f"Warning: Source path {source} does not exist", fg="yellow"
-                )
-                continue
-
-            dest_path = src_dir / destination
-            rel_path = dest_path.relative_to(temp_dir)
-            if source_path.is_file():
-                shutil.copy2(source_path, dest_path)
-            elif source_path.is_dir():
-                shutil.copytree(source_path, dest_path)
-
-            click.secho(f"✓ copied {source_path} to {rel_path}", fg="green")
-
-        # add temp directory contents to /zip
-        with zipfile.ZipFile(dst_com, "a", zipfile.ZIP_DEFLATED) as zf:
+        # add temp directory contents to output_path APE
+        with zipfile.ZipFile(output_path, "a", zipfile.ZIP_DEFLATED) as zf:
             for item in temp_dir.rglob("*"):
                 if item.is_file():
                     zf.write(item, str(item.relative_to(temp_dir)))
 
-        click.secho(f"Successfully packaged: {dst_com}", fg="green", bold=True)
+        click.secho(f"Successfully packaged: {output_path}", fg="green", bold=True)
 
     except Exception as exc:
         if os.environ.get("PYFUZE_DEBUG") == "1":
