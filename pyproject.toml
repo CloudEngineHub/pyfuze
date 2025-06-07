@@ -1,6 +1,6 @@
 [project]
 name = "pyfuze"
-version = "0.6.9"
+version = "1.0.0"
 license = { text = "MIT" }
 description = "pyfuze packages your Python project into a standalone Actually Portable Executable (APE)"
 readme = "README.md"
