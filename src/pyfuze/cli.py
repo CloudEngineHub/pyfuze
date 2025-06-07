@@ -163,11 +163,11 @@ def download(
     type=click.Path(exists=True, dir_okay=True, path_type=Path),
 )
 @click.option(
-    "--bundle",
-    "bundle",
-    default=True,
+    "--mode",
+    "mode",
+    default="bundle",
     show_default=True,
-    help="Bundle all dependencies in the output APE",
+    help="Packaging mode (bundle or online)",
 )
 @click.option(
     "--output-name",
@@ -253,7 +253,7 @@ def download(
 @click.version_option(__version__, "-v", "--version", prog_name="pyfuze")
 def cli(
     python_project: Path,
-    bundle: bool,
+    mode: str,
     output_name: str,
     unzip_path: str,
     python_version: str | None,
@@ -269,9 +269,18 @@ def cli(
     uv_install_script_unix: str,
     debug: bool,
 ) -> None:
-    """pyfuze packages your Python project into a standalone self-extracting Actually Portable Executable (APE)."""
+    """pyfuze packages your Python project into a standalone Actually Portable Executable (APE)."""
     if debug:
         os.environ["PYFUZE_DEBUG"] = "1"
+
+    possible_modes = ["bundle", "online"]
+    if mode not in possible_modes:
+        click.secho(
+            f"Invalid mode: {mode}\nPossible modes: {', '.join(possible_modes)}",
+            fg="red",
+            bold=True,
+        )
+        raise SystemExit(1)
 
     python_project = python_project.resolve()
     project_name = python_project.stem
@@ -281,7 +290,7 @@ def cli(
     win_gui_num = 1 if win_gui else 0
 
     click.secho(
-        f"starting packaging in {'bundle' if bundle else 'portable'} mode...",
+        f"starting packaging in {mode} mode...",
         fg="green",
     )
 
@@ -346,7 +355,7 @@ def cli(
         copy_includes(include, temp_dir)
 
         # download uv, python, dependencies
-        if bundle:
+        if mode == "bundle":
             download(
                 temp_dir,
                 env,

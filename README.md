@@ -5,7 +5,7 @@
 
 ## Description
 
-pyfuze packages your Python project into a standalone self-extracting Actually Portable Executable ([APE](https://justine.lol/ape.html)).
+pyfuze packages your Python project into a standalone Actually Portable Executable ([APE](https://justine.lol/ape.html)).
 
 This project is primarily built on top of [cosmopolitan](https://github.com/jart/cosmopolitan) and [uv](https://github.com/astral-sh/uv).
 
@@ -14,12 +14,16 @@ This project is primarily built on top of [cosmopolitan](https://github.com/jart
 | Mode                                | Standalone | Cross-Platform            |         Size          |
 |-----------------------------------|---------------------------------|--------------------------|------------------------|
 | Bundle      (default) | **Yes**                         | No (only runs on packaging platform) | Large                 |
-| Portable      | No(downloads dependencies at runtime)        | **Yes**                  | **Small**             |
+| Online      | No(downloads dependencies at runtime)        | **Yes**                  | **Small**             |
 
-In portable mode, the application primarily supports running on macOS (both ARM64 and AMD64), Linux (AMD64), and Windows (AMD64).
+In online mode, all dependencies are downloaded to the `--unzip-path`, which by default points to the system's temporary directory.
+This ensures a clean runtime environment without polluting the global system.
+Currently, online mode primarily supports running on macOS (both ARM64 and AMD64), Linux (AMD64), and Windows (AMD64).
+
 For more details, refer to:
 - https://github.com/jart/cosmopolitan/blob/master/ape/specification.md
 - https://docs.astral.sh/uv/reference/policies/platforms/
+
 
 ## Install
 
@@ -32,12 +36,12 @@ pip install pyfuze
 ```text
 Usage: pyfuze [OPTIONS] PYTHON_PROJECT
 
-  pyfuze packages your Python project into a standalone self-extracting
-  Actually Portable Executable (APE).
+  pyfuze packages your Python project into a standalone Actually Portable
+  Executable (APE).
 
 Options:
-  --bundle BOOLEAN                Bundle all dependencies in the output APE
-                                  [default: True]
+  --mode TEXT                     Packaging mode (bundle or online)  [default:
+                                  bundle]
   --output-name TEXT              Output APE name [default:
                                   <project_name>.com]
   --unzip-path TEXT               APE unzip path [default:
