@@ -6,7 +6,8 @@ import subprocess
 from pathlib import Path
 
 
-def rm(path: Path) -> None:
+def rm(path: str | Path) -> None:
+    path = Path(path)
     if path.exists():
         if path.is_dir():
             shutil.rmtree(path)
@@ -14,7 +15,9 @@ def rm(path: Path) -> None:
             path.unlink()
 
 
-def cp(src: Path, dst: Path) -> None:
+def cp(src: str | Path, dst: str | Path) -> None:
+    src = Path(src)
+    dst = Path(dst)
     if dst.exists():
         rm(dst)
     if src.is_dir():
@@ -27,7 +30,8 @@ def cp(src: Path, dst: Path) -> None:
         shutil.copy2(src, dst)
 
 
-def clean_folder(folder_path: Path) -> None:
+def clean_folder(folder_path: str | Path) -> None:
+    folder_path = Path(folder_path)
     rm(folder_path)
     folder_path.mkdir(parents=True, exist_ok=True)
 

@@ -11,9 +11,9 @@ from . import __version__
 from .utils import *
 
 
-def copy_pyfuze_com(out_path: Path, win_gui: bool) -> None:
-    pyfuze_path = (Path(__file__).parent / "pyfuze.com").resolve()
-    cp(pyfuze_path, out_path)
+def copy_ape(ape_name: str, out_path: Path, win_gui: bool) -> None:
+    ape_path = (Path(__file__).parent / ape_name).resolve()
+    cp(ape_path, out_path)
 
     click.secho(f"✓ copied {out_path}", fg="green")
 
@@ -103,38 +103,63 @@ def download_python() -> None:
     run_cmd([uv_path, "python", "install", "--install-dir", "python"])
 
 
-def find_python_path() -> Path:
-    python_dir = Path("python")
-    for path in python_dir.iterdir():
+def find_python_rel_path() -> str:
+    for path in Path("python").iterdir():
         if path.is_file() or path.name.startswith("."):
             continue
-        return path
+        return f"python/{path.name}"
+
+
+def get_uv_path() -> Path:
+    if os.name == "nt":
+        return Path(".\\uv\\uv.exe")
+    elif os.name == "posix":
+        return Path("./uv/uv")
+    else:
+        raise ValueError(f"Unsupported platform: {os.name}")
 
 
 def download_deps() -> None:
-    if os.name == "nt":
-        uv_path = ".\\uv\\uv.exe"
-    elif os.name == "posix":
-        uv_path = "./uv/uv"
-    else:
-        raise ValueError(f"Unsupported platform: {os.name}")
+    uv_path = get_uv_path()
 
     # uv init
     run_cmd([uv_path, "init", "--bare", "--no-workspace"])
     if Path("requirements.txt").exists():
         # uv add
         run_cmd(
-            [uv_path, "add", "-r", "requirements.txt", "--python", find_python_path()]
+            [
+                uv_path,
+                "add",
+                "-r",
+                "requirements.txt",
+                "--python",
+                find_python_rel_path(),
+            ]
         )
 
     # uv sync
-    cmd = [uv_path, "sync", "--python", find_python_path()]
+    cmd = [uv_path, "sync", "--python", find_python_rel_path()]
     if Path("uv.lock").exists():
         cmd.append("--frozen")
     run_cmd(cmd)
 
+    # rm .venv
+    rm(".venv")
 
-def download(
+
+def prepare_download_env(dest_dir: Path, env: tuple[str, ...]) -> None:
+    os.chdir(dest_dir)
+
+    os.environ["UV_CACHE_DIR"] = "cache"
+    os.environ["UV_UNMANAGED_INSTALL"] = "uv"
+    os.environ["VIRTUAL_ENV"] = ".venv"
+
+    for e in env:
+        key, value = e.split("=", 1)
+        os.environ[key] = value
+
+
+def download_portable_deps(
     dest_dir: Path,
     env: tuple[str, ...],
     uv_install_script_windows: str,
@@ -142,13 +167,44 @@ def download(
 ) -> None:
     os.chdir(dest_dir)
 
-    os.environ["UV_CACHE_DIR"] = "cache"
-    os.environ["UV_UNMANAGED_INSTALL"] = "uv"
-    os.environ["VIRTUAL_ENV"] = ".venv"
-    for e in env:
-        key, value = e.split("=", 1)
-        os.environ[key] = value
+    if Path("requirements.txt").exists():
+        prepare_download_env(dest_dir, env)
+        download_uv(uv_install_script_windows, uv_install_script_unix)
+        Path(".python-version").write_text("3.12.3")
+        download_python()
+        rm(".python-version")
 
+        uv_path = get_uv_path()
+        site_packages_path = Path("Lib/site-packages")
+        site_packages_path.mkdir(parents=True, exist_ok=True)
+        run_cmd(
+            [
+                uv_path,
+                "pip",
+                "install",
+                "-r",
+                "requirements.txt",
+                "--target",
+                str(site_packages_path),
+                "--python",
+                find_python_rel_path(),
+            ]
+        )
+
+        rm("uv")
+        rm("cache")
+        rm("python")
+
+        click.secho(f"✓ downloaded dependencies", fg="green")
+
+
+def download_uv_python_deps(
+    dest_dir: Path,
+    env: tuple[str, ...],
+    uv_install_script_windows: str,
+    uv_install_script_unix: str,
+) -> None:
+    prepare_download_env(dest_dir, env)
     download_uv(uv_install_script_windows, uv_install_script_unix)
     click.secho(f"✓ downloaded uv", fg="green")
     download_python()
@@ -167,7 +223,7 @@ def download(
     "mode",
     default="bundle",
     show_default=True,
-    help="Packaging mode (bundle or online)",
+    help="Packaging mode (bundle, online or portable)",
 )
 @click.option(
     "--output-name",
@@ -270,47 +326,71 @@ def cli(
     debug: bool,
 ) -> None:
     """pyfuze packages your Python project into a standalone Actually Portable Executable (APE)."""
-    if debug:
-        os.environ["PYFUZE_DEBUG"] = "1"
-
-    possible_modes = ["bundle", "online"]
-    if mode not in possible_modes:
-        click.secho(
-            f"Invalid mode: {mode}\nPossible modes: {', '.join(possible_modes)}",
-            fg="red",
-            bold=True,
-        )
-        raise SystemExit(1)
-
-    python_project = python_project.resolve()
-    project_name = python_project.stem
-    output_name = output_name or f"{project_name}.com"
-    unzip_path = unzip_path or f"/tmp/{project_name}"
-    entry = python_project.name if python_project.is_file() else entry
-    win_gui_num = 1 if win_gui else 0
-
-    click.secho(
-        f"starting packaging in {mode} mode...",
-        fg="green",
-    )
-
     try:
+        if debug:
+            os.environ["PYFUZE_DEBUG"] = "1"
+
+        # validate mode
+        possible_modes = ["portable", "bundle", "online"]
+        if mode not in possible_modes:
+            click.secho(
+                f"Invalid mode: {mode}\nPossible modes: {', '.join(possible_modes)}",
+                fg="red",
+                bold=True,
+            )
+            raise SystemExit(1)
+        click.secho(f"starting packaging in {mode} mode...", fg="green")
+
+        # resolve options
+        python_project = python_project.resolve()
+        project_name = python_project.stem
+        output_name = output_name or f"{project_name}.com"
+        unzip_path = unzip_path or f"/tmp/{project_name}"
+        entry = python_project.name if python_project.is_file() else entry
+        win_gui_num = 1 if win_gui else 0
+
         # create build directory
         build_dir = Path("build").resolve()
         build_dir.mkdir(parents=True, exist_ok=True)
-
-        # copy the pyfuze.com launcher
-        output_path = build_dir / output_name
-        copy_pyfuze_com(output_path, win_gui)
 
         # create temp directory
         temp_dir = build_dir / project_name
         clean_folder(temp_dir)
 
-        # write .python-version
-        if python_version:
-            (temp_dir / ".python-version").write_text(python_version)
-            click.secho(f"✓ wrote .python-version ({python_version})", fg="green")
+        if mode == "portable":
+            # write .args
+            (temp_dir / ".args").write_text(f"/zip/src/{entry}")
+            click.secho(f"✓ wrote .args", fg="green")
+        else:
+            # write .python-version
+            if python_version:
+                (temp_dir / ".python-version").write_text(python_version)
+                click.secho(f"✓ wrote .python-version ({python_version})", fg="green")
+
+            # write pyproject.toml
+            if pyproject:
+                cp(pyproject, temp_dir / "pyproject.toml")
+                click.secho(f"✓ wrote pyproject.toml", fg="green")
+
+            # write uv.lock
+            if uv_lock:
+                cp(uv_lock, temp_dir / "uv.lock")
+                click.secho(f"✓ wrote uv.lock", fg="green")
+
+            # write .pyfuze_config.txt
+            config_list = [
+                f"unzip_path={unzip_path}",
+                f"entry={entry}",
+                f"win_gui={win_gui_num}",
+                f"uv_install_script_windows={uv_install_script_windows}",
+                f"uv_install_script_unix={uv_install_script_unix}",
+            ]
+            for e in env:
+                key, value = e.split("=", 1)
+                config_list.append(f"env_{key}={value}")
+            config_text = "\n".join(config_list)
+            (temp_dir / ".pyfuze_config.txt").write_text(config_text)
+            click.secho("✓ wrote .pyfuze_config.txt", fg="green")
 
         # write requirements.txt
         if requirements:
@@ -319,31 +399,6 @@ def cli(
             click.secho(
                 f"✓ wrote requirements.txt ({len(req_list)} packages)", fg="green"
             )
-
-        # write pyproject.toml
-        if pyproject:
-            cp(pyproject, temp_dir / "pyproject.toml")
-            click.secho(f"✓ wrote pyproject.toml", fg="green")
-
-        # write uv.lock
-        if uv_lock:
-            cp(uv_lock, temp_dir / "uv.lock")
-            click.secho(f"✓ wrote uv.lock", fg="green")
-
-        # write .pyfuze_config.txt
-        config_list = [
-            f"unzip_path={unzip_path}",
-            f"entry={entry}",
-            f"win_gui={win_gui_num}",
-            f"uv_install_script_windows={uv_install_script_windows}",
-            f"uv_install_script_unix={uv_install_script_unix}",
-        ]
-        for e in env:
-            key, value = e.split("=", 1)
-            config_list.append(f"env_{key}={value}")
-        config_text = "\n".join(config_list)
-        (temp_dir / ".pyfuze_config.txt").write_text(config_text)
-        click.secho("✓ wrote .pyfuze_config.txt", fg="green")
 
         # copy python project files
         src_dir = temp_dir / "src"
@@ -354,16 +409,30 @@ def cli(
         # copy additional includes
         copy_includes(include, temp_dir)
 
-        # download uv, python, dependencies
+        # download dependencies
         if mode == "bundle":
-            download(
+            download_uv_python_deps(
+                temp_dir,
+                env,
+                uv_install_script_windows,
+                uv_install_script_unix,
+            )
+        elif mode == "portable":
+            download_portable_deps(
                 temp_dir,
                 env,
                 uv_install_script_windows,
                 uv_install_script_unix,
             )
 
-        # add temp directory contents to output_path APE
+        # copy APE
+        output_path = build_dir / output_name
+        if mode == "portable":
+            copy_ape("python.com", output_path, win_gui)
+        else:
+            copy_ape("pyfuze.com", output_path, win_gui)
+
+        # add temp directory contents to output APE
         with zipfile.ZipFile(output_path, "a", zipfile.ZIP_DEFLATED) as zf:
             for item in temp_dir.rglob("*"):
                 if item.is_file():

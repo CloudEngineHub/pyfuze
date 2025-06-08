@@ -9,5 +9,5 @@ wheels/
 # Virtual environments
 .venv
 
-src/pyfuze/pyfuze.com
+*.com
 .vscode/
