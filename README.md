@@ -37,6 +37,12 @@ In summary, both modes are expected to run on macOS (ARM64 and AMD64), Linux (AM
 pip install pyfuze
 ```
 
+Alternatively, you can run it directly with uvx:
+
+```bash
+uvx pyfuze -h
+```
+
 ## Usage
 
 ```text
