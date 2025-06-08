@@ -15,7 +15,7 @@ This project is primarily built on top of [cosmopolitan](https://github.com/jart
 |------------------------|------------|----------------|------------|----------------|
 | **Bundle** *(default)* | ✅          | ❌             | 🔴 Large   | ✅ High         |
 | **Online**             | ❌          | ✅             | 🟢 Small   | ✅ High         |
-| **Portable**           | ✅          | ✅             | 🟡 Medium  | 🟡 Low          |
+| **Portable**           | ✅          | ✅             | 🟡 Medium  | 🔴 Low          |
 
 **Bundle** mode packages your application with Python and all dependencies included. It only runs on the same platform it was packaged on, providing the highest compatibility. The package extracts its contents to `--unzip-path` at runtime.
 
