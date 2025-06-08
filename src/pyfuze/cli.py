@@ -20,7 +20,7 @@ def copy_ape(ape_name: str, out_path: Path, win_gui: bool) -> None:
     if win_gui:
         click.secho(f"✓ configured as Windows GUI application", fg="green")
     else:
-        set_pe_subsystem_console(out_path)
+        set_pe_subsystem_console(str(out_path))
         click.secho(f"✓ configured as console application", fg="green")
 
     out_path.chmod(0o755)
@@ -108,13 +108,14 @@ def find_python_rel_path() -> str:
         if path.is_file() or path.name.startswith("."):
             continue
         return f"python/{path.name}"
+    raise ValueError("Python not found")
 
 
-def get_uv_path() -> Path:
+def get_uv_path() -> str:
     if os.name == "nt":
-        return Path(".\\uv\\uv.exe")
+        return ".\\uv\\uv.exe"
     elif os.name == "posix":
-        return Path("./uv/uv")
+        return "./uv/uv"
     else:
         raise ValueError(f"Unsupported platform: {os.name}")
 

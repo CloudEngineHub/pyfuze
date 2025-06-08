@@ -23,6 +23,12 @@ jobs:
 
       - run: bash compile_csrc.sh
 
+      - run: wget https://github.com/jart/cosmopolitan/releases/download/4.0.2/cosmos-4.0.2.zip
+
+      - run: unzip cosmos-4.0.2.zip -d cosmos
+
+      - run: cp cosmos/bin/python src/pyfuze/python.com
+
       - run: uv build --wheel --no-sources
 
       - run: uv publish
