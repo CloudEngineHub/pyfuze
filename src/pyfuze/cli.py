@@ -223,63 +223,73 @@ def download_uv_python_deps(
     "--mode",
     "mode",
     default="bundle",
-    show_default=True,
-    help="Packaging mode (bundle, online or portable)",
+    help="""
+Available modes:
+
+- bundle(default): Includes Python and all dependencies. Runs only on the same platform. Highest compatibility. Extracts to --unzip-path at runtime.
+
+- online: Small and cross-platform. Extracts and downloads dependencies to --unzip-path at runtime (requires internet).
+
+- portable: Standalone cross-platform executable. No extraction and internet needed. Supports only pure Python and --output-name, --entry, --reqs, --include, --exclude.
+
+\b
+""",
 )
 @click.option(
     "--output-name",
     "output_name",
-    help="Output APE name [default: <project_name>.com]",
-)
-@click.option(
-    "--unzip-path",
-    "unzip_path",
-    help="APE unzip path [default: /tmp/<project_name>]",
-)
-@click.option(
-    "--python",
-    "python_version",
-    help="Add .python-version file",
-)
-@click.option(
-    "--reqs",
-    "requirements",
-    help="Add requirements.txt file (input comma-separated string OR file path)",
-)
-@click.option(
-    "--pyproject",
-    "pyproject",
-    type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="Add pyproject.toml file",
-)
-@click.option(
-    "--uv-lock",
-    "uv_lock",
-    type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="Add uv.lock file",
+    help="Output executable name [default: <project_name>.com]",
 )
 @click.option(
     "--entry",
     "entry",
     default="main.py",
-    help="Entry python file",
+    show_default=True,
+    help="Entry Python file. Used when your project is a folder.",
 )
 @click.option(
-    "--win-gui",
-    is_flag=True,
-    help="Hide the console window on Windows",
+    "--reqs",
+    "requirements",
+    help="Add requirements.txt file to specify dependencies (input comma-separated string OR file path)",
 )
 @click.option(
     "--include",
     "include",
     multiple=True,
-    help="Include additional file or folder (source[::destination]) (repeatable)",
+    help="Include extra files or folders (e.g. config.ini) (source[::destination]) (repeatable)",
 )
 @click.option(
     "--exclude",
     "exclude",
     multiple=True,
-    help="Exclude path relative to the project root (repeatable)",
+    help="Exclude project files or folders (e.g. build.py) (repeatable).",
+)
+@click.option(
+    "--unzip-path",
+    "unzip_path",
+    help="Unzip path for bundle and online modes (default: /tmp/<project_name>)",
+)
+@click.option(
+    "--python",
+    "python_version",
+    help="Add .python-version file to specify Python version (e.g. 3.11)",
+)
+@click.option(
+    "--pyproject",
+    "pyproject",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Include pyproject.toml to specify project dependencies",
+)
+@click.option(
+    "--uv-lock",
+    "uv_lock",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Include uv.lock file to lock dependencies",
+)
+@click.option(
+    "--win-gui",
+    is_flag=True,
+    help="Hide the console window on Windows",
 )
 @click.option(
     "--env",
@@ -292,14 +302,14 @@ def download_uv_python_deps(
     "uv_install_script_windows",
     default="https://astral.sh/uv/install.ps1",
     show_default=True,
-    help="UV installation script URI for Windows",
+    help="UV installation script URI for Windows (URL or local path)",
 )
 @click.option(
     "--uv-install-script-unix",
     "uv_install_script_unix",
     default="https://astral.sh/uv/install.sh",
     show_default=True,
-    help="UV installation script URI for Unix",
+    help="UV installation script URI for Unix (URL or local path)",
 )
 @click.option(
     "--debug",
@@ -312,21 +322,21 @@ def cli(
     python_project: Path,
     mode: str,
     output_name: str,
-    unzip_path: str,
-    python_version: str | None,
-    requirements: str | None,
-    pyproject: Path | None,
-    uv_lock: Path | None,
     entry: str,
-    win_gui: bool,
+    requirements: str | None,
     include: tuple[str, ...],
     exclude: tuple[str, ...],
+    unzip_path: str,
+    python_version: str | None,
+    pyproject: Path | None,
+    uv_lock: Path | None,
+    win_gui: bool,
     env: tuple[str, ...],
     uv_install_script_windows: str,
     uv_install_script_unix: str,
     debug: bool,
 ) -> None:
-    """pyfuze packages your Python project into a standalone Actually Portable Executable (APE)."""
+    """Package Python projects into executables."""
     try:
         if debug:
             os.environ["PYFUZE_DEBUG"] = "1"
@@ -408,7 +418,7 @@ def cli(
         click.secho(f"✓ copied {python_project.name} to src folder", fg="green")
 
         # copy additional includes
-        copy_includes(include, temp_dir)
+        copy_includes(include, src_dir)
 
         # download dependencies
         if mode == "bundle":
@@ -429,7 +439,7 @@ def cli(
         # copy APE
         output_path = build_dir / output_name
         if mode == "portable":
-            copy_ape("python.com", output_path, win_gui)
+            copy_ape("python.com", output_path, False)
         else:
             copy_ape("pyfuze.com", output_path, win_gui)
 

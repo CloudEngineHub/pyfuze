@@ -254,26 +254,24 @@ void unzip() {
     struct dirent *ent;
     if (!d) exit_with_message("opendir /zip failed");
     char src_path[PATH_MAX] = {0};
-    char dst_path[PATH_MAX] = {0};
     struct stat st;
     while (ent = readdir(d)) {
         if (strcmp(ent->d_name, ".") == 0) continue;
         if (strcmp(ent->d_name, "..") == 0) continue;
         if (strcmp(ent->d_name, ".cosmo") == 0) continue;
         if (strcmp(ent->d_name, ".pyfuze_config.txt") == 0) continue;
-        path_join(dst_path, sizeof(dst_path), config_unzip_path, ent->d_name);
-        if (path_exists(dst_path)) continue;
+        if (path_exists(ent->d_name)) continue;
         path_join(src_path, sizeof(src_path), "/zip", ent->d_name);
         if (stat(src_path, &st) != 0) {
             closedir(d);
             exit_with_message("stat %s failed", src_path);
         }
         if (S_ISDIR(st.st_mode)) {
-            console_log("found directory %s, copying to %s ...\n", src_path, dst_path);
-            copy_directory(src_path, dst_path);
+            console_log("found directory %s, extracting ...\n", src_path);
+            copy_directory(src_path, ent->d_name);
         } else if (S_ISREG(st.st_mode)) {
-            console_log("found file %s, copying to %s ...\n", src_path, dst_path);
-            copy_file(src_path, dst_path);
+            console_log("found file %s, extracting ...\n", src_path);
+            copy_file(src_path, ent->d_name);
         }
     }
     closedir(d);
