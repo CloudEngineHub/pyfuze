@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 import shutil
 import subprocess
@@ -50,18 +51,30 @@ def copy_python_source(src: Path, dst: Path, exclude_path_set: set[Path]) -> Non
 
 
 def run_cmd(cmd: list[str]) -> None:
-    startup = subprocess.STARTUPINFO()
-    startup.dwFlags = subprocess.STARTF_USESHOWWINDOW
-    startup.wShowWindow = subprocess.SW_HIDE
-    process = subprocess.Popen(
-        cmd,
-        shell=True,  # NOTE: hide the console window on Windows
-        stdin=sys.stdin,
-        stdout=sys.stdout,
-        stderr=sys.stderr,
-        startupinfo=startup,
-    )
-    process.wait()
+    if os.name == "nt":
+        startup = subprocess.STARTUPINFO()
+        startup.dwFlags = subprocess.STARTF_USESHOWWINDOW
+        startup.wShowWindow = subprocess.SW_HIDE
+        process = subprocess.Popen(
+            cmd,
+            shell=True,  # NOTE: hide the console window on Windows
+            stdin=sys.stdin,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+            startupinfo=startup,
+        )
+        process.wait()
+    elif os.name == "posix":
+        process = subprocess.Popen(
+            cmd,
+            shell=False,
+            stdin=sys.stdin,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+        )
+        process.wait()
+    else:
+        raise NotImplementedError(f"Unsupported platform: {os.name}")
 
 
 def set_pe_subsystem(file_path: str, subsystem_type: int):
