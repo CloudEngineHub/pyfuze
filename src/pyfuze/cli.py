@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import zipfile
+from typing import Any
 from pathlib import Path
 from traceback import print_exc
 
@@ -148,16 +149,29 @@ def download_deps() -> None:
     rm(".venv")
 
 
-def prepare_download_env(dest_dir: Path, env: tuple[str, ...]) -> None:
-    os.chdir(dest_dir)
+class DownloadEnv:
+    def __init__(self, dest_dir: Path, env: tuple[str, ...]):
+        self.cwd = os.getcwd()
+        self.current_env = os.environ.copy()
 
-    os.environ["UV_CACHE_DIR"] = "cache"
-    os.environ["UV_UNMANAGED_INSTALL"] = "uv"
-    os.environ["VIRTUAL_ENV"] = ".venv"
+        self.dest_dir = dest_dir
+        self.env = env
 
-    for e in env:
-        key, value = e.split("=", 1)
-        os.environ[key] = value
+    def __enter__(self):
+        os.chdir(self.dest_dir)
+
+        os.environ["UV_CACHE_DIR"] = "cache"
+        os.environ["UV_UNMANAGED_INSTALL"] = "uv"
+        os.environ["VIRTUAL_ENV"] = ".venv"
+
+        for e in self.env:
+            key, value = e.split("=", 1)
+            os.environ[key] = value
+
+    def __exit__(self, exc_type: Any, exc_value: Any, exc_traceback: Any) -> None:
+        os.chdir(self.cwd)
+        os.environ.clear()
+        os.environ.update(self.current_env)
 
 
 def download_portable_deps(
@@ -166,37 +180,35 @@ def download_portable_deps(
     uv_install_script_windows: str,
     uv_install_script_unix: str,
 ) -> None:
-    os.chdir(dest_dir)
-
     if Path("requirements.txt").exists():
-        prepare_download_env(dest_dir, env)
-        download_uv(uv_install_script_windows, uv_install_script_unix)
-        Path(".python-version").write_text("3.12.3")
-        download_python()
-        rm(".python-version")
+        with DownloadEnv(dest_dir, env):
+            download_uv(uv_install_script_windows, uv_install_script_unix)
+            Path(".python-version").write_text("3.12.3")
+            download_python()
+            rm(".python-version")
 
-        uv_path = get_uv_path()
-        site_packages_path = Path("Lib/site-packages")
-        site_packages_path.mkdir(parents=True, exist_ok=True)
-        run_cmd(
-            [
-                uv_path,
-                "pip",
-                "install",
-                "-r",
-                "requirements.txt",
-                "--target",
-                str(site_packages_path),
-                "--python",
-                find_python_rel_path(),
-            ]
-        )
+            uv_path = get_uv_path()
+            site_packages_path = Path("Lib/site-packages")
+            site_packages_path.mkdir(parents=True, exist_ok=True)
+            run_cmd(
+                [
+                    uv_path,
+                    "pip",
+                    "install",
+                    "-r",
+                    "requirements.txt",
+                    "--target",
+                    str(site_packages_path),
+                    "--python",
+                    find_python_rel_path(),
+                ]
+            )
 
-        rm("uv")
-        rm("cache")
-        rm("python")
+            rm("uv")
+            rm("cache")
+            rm("python")
 
-        click.secho(f"✓ downloaded dependencies", fg="green")
+            click.secho(f"✓ downloaded dependencies", fg="green")
 
 
 def download_uv_python_deps(
@@ -205,13 +217,13 @@ def download_uv_python_deps(
     uv_install_script_windows: str,
     uv_install_script_unix: str,
 ) -> None:
-    prepare_download_env(dest_dir, env)
-    download_uv(uv_install_script_windows, uv_install_script_unix)
-    click.secho(f"✓ downloaded uv", fg="green")
-    download_python()
-    click.secho(f"✓ downloaded python", fg="green")
-    download_deps()
-    click.secho(f"✓ downloaded dependencies", fg="green")
+    with DownloadEnv(dest_dir, env):
+        download_uv(uv_install_script_windows, uv_install_script_unix)
+        click.secho(f"✓ downloaded uv", fg="green")
+        download_python()
+        click.secho(f"✓ downloaded python", fg="green")
+        download_deps()
+        click.secho(f"✓ downloaded dependencies", fg="green")
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
@@ -360,9 +372,11 @@ def cli(
         entry = python_project.name if python_project.is_file() else entry
         win_gui_num = 1 if win_gui else 0
 
-        # create build directory
+        # create build and dist directories
         build_dir = Path("build").resolve()
         build_dir.mkdir(parents=True, exist_ok=True)
+        dist_dir = Path("dist").resolve()
+        dist_dir.mkdir(parents=True, exist_ok=True)
 
         # create temp directory
         temp_dir = build_dir / project_name
@@ -437,8 +451,6 @@ def cli(
             )
 
         # copy APE to dist directory
-        dist_dir = Path("dist").resolve()
-        dist_dir.mkdir(parents=True, exist_ok=True)
         output_path = dist_dir / output_name
         if mode == "portable":
             copy_ape("python.com", output_path, False)

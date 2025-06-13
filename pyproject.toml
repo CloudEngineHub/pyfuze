@@ -1,6 +1,6 @@
 [project]
 name = "pyfuze"
-version = "2.1.1"
+version = "2.1.2"
 license = { text = "MIT" }
 description = "Package Python projects into executables"
 readme = "README.md"
