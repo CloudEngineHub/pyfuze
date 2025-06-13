@@ -117,7 +117,7 @@ pyfuze ./examples/simple.py --mode portable --reqs requests
 
 ### Bundle Mode
 
-This command generates `complex.com` in the `build` folder using the bundle mode.
+This command generates `complex.com` in the `dist` folder using the bundle mode.
 Since `complex` is a folder-based project, we specify the entry file using `--entry`.
 
 We include `pyproject.toml` and `uv.lock` via `--pyproject` and `--uv-lock` to define the project's dependencies.

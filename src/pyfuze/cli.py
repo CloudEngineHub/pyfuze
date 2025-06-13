@@ -436,8 +436,10 @@ def cli(
                 uv_install_script_unix,
             )
 
-        # copy APE
-        output_path = build_dir / output_name
+        # copy APE to dist directory
+        dist_dir = Path("dist").resolve()
+        dist_dir.mkdir(parents=True, exist_ok=True)
+        output_path = dist_dir / output_name
         if mode == "portable":
             copy_ape("python.com", output_path, False)
         else:
