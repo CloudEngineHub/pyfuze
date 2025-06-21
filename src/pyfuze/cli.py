@@ -124,8 +124,9 @@ def get_uv_path() -> str:
 def download_deps() -> None:
     uv_path = get_uv_path()
 
-    # uv init
-    run_cmd([uv_path, "init", "--bare", "--no-workspace"])
+    if not Path("pyproject.toml").exists():
+        # uv init
+        run_cmd([uv_path, "init", "--bare", "--no-workspace"])
     if Path("requirements.txt").exists():
         # uv add
         run_cmd(
