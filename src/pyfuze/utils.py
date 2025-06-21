@@ -31,6 +31,14 @@ def cp(src: str | Path, dst: str | Path) -> None:
         shutil.copy2(src, dst)
 
 
+def is_subpath(child: Path, parent: Path) -> bool:
+    try:
+        child.resolve().relative_to(parent.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 def clean_folder(folder_path: str | Path) -> None:
     folder_path = Path(folder_path)
     rm(folder_path)

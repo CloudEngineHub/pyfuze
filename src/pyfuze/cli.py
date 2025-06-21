@@ -381,6 +381,15 @@ def cli(
         dist_dir = Path("dist").resolve()
         dist_dir.mkdir(parents=True, exist_ok=True)
 
+        # check if build_dir is subdir of python_project
+        if is_subpath(build_dir, python_project):
+            click.secho(
+                f"Error: python_project cannot contain build_dir",
+                fg="red",
+                bold=True,
+            )
+            raise SystemExit(1)
+
         # create temp directory
         temp_dir = build_dir / project_name
         clean_folder(temp_dir)
