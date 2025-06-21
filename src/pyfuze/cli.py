@@ -139,6 +139,7 @@ def download_deps() -> None:
                 find_python_rel_path(),
             ]
         )
+        rm("requirements.txt")
 
     # uv sync
     cmd = [uv_path, "sync", "--python", find_python_rel_path()]
@@ -181,8 +182,8 @@ def download_portable_deps(
     uv_install_script_windows: str,
     uv_install_script_unix: str,
 ) -> None:
-    if Path("requirements.txt").exists():
-        with DownloadEnv(dest_dir, env):
+    with DownloadEnv(dest_dir, env):
+        if Path("requirements.txt").exists():
             download_uv(uv_install_script_windows, uv_install_script_unix)
             Path(".python-version").write_text("3.12.3")
             download_python()
@@ -204,6 +205,7 @@ def download_portable_deps(
                     find_python_rel_path(),
                 ]
             )
+            rm("requirements.txt")
 
             rm("uv")
             rm("cache")
