@@ -1,16 +1,12 @@
 [project]
 name = "pyfuze"
-version = "2.1.2"
+version = "2.2.0"
 license = { text = "MIT" }
 description = "Package Python projects into executables"
 readme = "README.md"
-authors = [
-    { name = "Tanix", email = "tanixlu@foxmail.com" }
-]
+authors = [{ name = "Tanix", email = "tanixlu@foxmail.com" }]
 requires-python = ">=3.8"
-dependencies = [
-    "click>=8.1.8",
-]
+dependencies = ["click>=8.1.8"]
 
 [project.scripts]
 pyfuze = "pyfuze.cli:cli"
