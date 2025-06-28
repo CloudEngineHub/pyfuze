@@ -166,3 +166,13 @@ pyfuze ./examples/complex \
   --env UV_PYTHON_INSTALL_MIRROR=<python-install-mirror-url> \
   --env UV_DEFAULT_INDEX=<pypi-mirror-url>
 ```
+
+## License
+
+pyfuze is released under the [MIT license](https://github.com/TanixLu/pyfuze/blob/main/LICENSE).
+
+## Contacts
+
+- Report bugs and feature requests via [GitHub Issues](https://github.com/TanixLu/pyfuze/issues)
+- Discuss on [Discord](https://discord.gg/GE9FyB5vtt)
+- QQ Group: 1054869699
