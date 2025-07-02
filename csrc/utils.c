@@ -1,27 +1,25 @@
 #include "utils.h"
 
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
-#include "unistd.h"
+#include "config.h"
 #include "dirent.h"
-#include "limits.h"
-#include "stdarg.h"
-#include "spawn.h"
-#include "sys/stat.h"
-#include "windowsesque.h"
-
 #include "libc/dce.h"
-#include "libc/x/x.h"
+#include "libc/errno.h"
 #include "libc/nt/console.h"
+#include "libc/nt/createfile.h"
+#include "libc/nt/enum/processcreationflags.h"
 #include "libc/nt/process.h"
 #include "libc/nt/runtime.h"
 #include "libc/nt/synchronization.h"
-#include "libc/nt/enum/processcreationflags.h"
-#include "libc/nt/createfile.h"
-#include "libc/errno.h"
-
-#include "config.h"
+#include "libc/x/x.h"
+#include "limits.h"
+#include "spawn.h"
+#include "stdarg.h"
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
+#include "sys/stat.h"
+#include "unistd.h"
+#include "windowsesque.h"
 
 int attach_console = 0;
 int alloc_console = 0;
@@ -141,6 +139,11 @@ void init() {
     // set environment variables
     set_env("UV_CACHE_DIR", cache_dir);
     set_env("UV_UNMANAGED_INSTALL", uv_dir);
+
+    // https://github.com/PowerShell/PowerShell/issues/18530#issuecomment-1325691850
+    if (IsWindows()) {
+        set_env("PSModulePath", "");
+    }
 
     for (size_t i = 0; i < config->count; i++) {
         char *key = config->items[i].key;

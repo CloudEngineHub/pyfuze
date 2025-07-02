@@ -153,8 +153,8 @@ def download_deps() -> None:
 
 class DownloadEnv:
     def __init__(self, dest_dir: Path, env: tuple[str, ...]):
-        self.cwd = os.getcwd()
-        self.current_env = os.environ.copy()
+        self.origin_cwd = os.getcwd()
+        self.origin_env = os.environ.copy()
 
         self.dest_dir = dest_dir
         self.env = env
@@ -166,14 +166,17 @@ class DownloadEnv:
         os.environ["UV_UNMANAGED_INSTALL"] = "uv"
         os.environ["VIRTUAL_ENV"] = ".venv"
 
+        # https://github.com/PowerShell/PowerShell/issues/18530#issuecomment-1325691850
+        os.environ["PSModulePath"] = ""
+
         for e in self.env:
             key, value = e.split("=", 1)
             os.environ[key] = value
 
     def __exit__(self, exc_type: Any, exc_value: Any, exc_traceback: Any) -> None:
-        os.chdir(self.cwd)
+        os.chdir(self.origin_cwd)
         os.environ.clear()
-        os.environ.update(self.current_env)
+        os.environ.update(self.origin_env)
 
 
 def download_portable_deps(
@@ -381,7 +384,7 @@ def cli(
         dist_dir = Path("dist").resolve()
         dist_dir.mkdir(parents=True, exist_ok=True)
 
-        # exclude build and target directories
+        # exclude build and dist directories
         exclude = tuple(list(exclude) + ["build", "dist"])
 
         # create temp directory
