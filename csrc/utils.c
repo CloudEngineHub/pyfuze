@@ -98,6 +98,13 @@ int path_exists(const char *filename) {
     return access(filename, F_OK) == 0;
 }
 
+char *get_executable_dir() {
+    char *executable_path = GetProgramExecutableName();
+    char *last_slash = strrchr(executable_path, '/');
+    *(last_slash + 1) = '\0';
+    return executable_path;
+}
+
 void path_join(char *result, size_t result_size, const char *p1, const char *p2) {
     if (p1[strlen(p1) - 1] == '/') {
         snprintf(result, result_size, "%s%s", p1, p2);
@@ -138,6 +145,9 @@ Config *read_config() {
 
 void init() {
     Config *config = read_config();
+
+    char *executable_dir = get_executable_dir();
+    chdir(executable_dir);
 
     path_join(uv_path, sizeof(uv_path), uv_dir, IsWindows() ? "uv.exe" : "uv");
     mkdir_recursive(config_unzip_path);
