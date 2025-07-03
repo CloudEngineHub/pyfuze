@@ -21,6 +21,13 @@
 #include "unistd.h"
 #include "windowsesque.h"
 
+#define MAX_BUILD_ID_LENGTH 128
+const char *build_id_name = ".build_id.txt";
+const char *zip_build_id_path = "/zip/.build_id.txt";
+
+const char *config_name = ".pyfuze_config.txt";
+const char *zip_config_path = "/zip/.pyfuze_config.txt";
+
 int attach_console = 0;
 int alloc_console = 0;
 
@@ -115,9 +122,9 @@ void find_python_path() {
 }
 
 Config *read_config() {
-    Config *config = parse_config("/zip/.pyfuze_config.txt");
+    Config *config = parse_config(zip_config_path);
     if (!config) {
-        exit_with_message("Failed to parse .pyfuze_config.txt");
+        exit_with_message("Failed to parse %s", zip_config_path);
     }
 
     strcpy(config_unzip_path, get_config_value(config, "unzip_path"));
@@ -252,23 +259,47 @@ void set_env(const char *key, const char *value) {
     }
 }
 
+void read_build_id(const char *path, char *build_id) {
+    FILE *file = fopen(path, "r");
+    if (!file) return;
+    fread(build_id, 1, MAX_BUILD_ID_LENGTH, file);
+    fclose(file);
+}
+
+// Check if the build ID in the zip differs from the current one.
+// If changed, unzip and overwrite existing files.
 void unzip() {
+    char src_path[PATH_MAX] = {0};
+    struct stat st;
+
     DIR *d = opendir("/zip");
     struct dirent *ent;
     if (!d) exit_with_message("opendir /zip failed");
-    char src_path[PATH_MAX] = {0};
-    struct stat st;
+
+    char build_id[MAX_BUILD_ID_LENGTH] = {0};
+    char existing_build_id[MAX_BUILD_ID_LENGTH] = {0};
+    read_build_id(zip_build_id_path, build_id);
+    read_build_id(build_id_name, existing_build_id);
+    int build_id_changed = strcmp(build_id, existing_build_id) != 0;
+    if (build_id_changed) {
+        console_log("build id changed, extracting and overwriting files...\n");
+    }
+
     while (ent = readdir(d)) {
         if (strcmp(ent->d_name, ".") == 0) continue;
         if (strcmp(ent->d_name, "..") == 0) continue;
         if (strcmp(ent->d_name, ".cosmo") == 0) continue;
-        if (strcmp(ent->d_name, ".pyfuze_config.txt") == 0) continue;
-        if (path_exists(ent->d_name)) continue;
+        if (strcmp(ent->d_name, config_name) == 0) continue;
+        if (strcmp(ent->d_name, build_id_name) == 0) continue;
+
+        if (!build_id_changed && path_exists(ent->d_name)) continue;
+
         path_join(src_path, sizeof(src_path), "/zip", ent->d_name);
         if (stat(src_path, &st) != 0) {
             closedir(d);
             exit_with_message("stat %s failed", src_path);
         }
+
         if (S_ISDIR(st.st_mode)) {
             console_log("found directory %s, extracting ...\n", src_path);
             copy_directory(src_path, ent->d_name);
@@ -277,6 +308,12 @@ void unzip() {
             copy_file(src_path, ent->d_name);
         }
     }
+
+    if (build_id_changed) {
+        copy_file(zip_build_id_path, build_id_name);
+        console_log("successfully updated %s\n", build_id_name);
+    }
+
     closedir(d);
 }
 
