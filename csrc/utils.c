@@ -466,13 +466,9 @@ void uv_sync(int frozen, int python) {
 void uv_run(int gui, int argc, char *argv[]) {
     if (IsWindows()) {
         if (gui) {
-            snprintf(cmdline, sizeof(cmdline),
-                     "\"%s\" run --project %s --directory %s --gui-script %s%s",
-                     uv_path, config_unzip_path, src_dir, config_entry);
+            snprintf(cmdline, sizeof(cmdline), "\"%s\" run --project %s --directory %s --gui-script %s", uv_path, config_unzip_path, src_dir, config_entry);
         } else {
-            snprintf(cmdline, sizeof(cmdline),
-                     "\"%s\" run --project %s --directory %s --script %s%s",
-                     uv_path, config_unzip_path, src_dir, config_entry);
+            snprintf(cmdline, sizeof(cmdline), "\"%s\" run --project %s --directory %s --script %s", uv_path, config_unzip_path, src_dir, config_entry);
         }
         for (int i = 1; i < argc; i++) {
             strcat(cmdline, " \"");
