@@ -99,7 +99,7 @@ int path_exists(const char *filename) {
 }
 
 char *get_executable_dir() {
-    char *executable_path = GetProgramExecutableName();
+    char *executable_path = strdup(GetProgramExecutableName());
     char *last_slash = strrchr(executable_path, '/');
     *(last_slash + 1) = '\0';
     return executable_path;
@@ -161,6 +161,15 @@ void init() {
     if (IsWindows()) {
         set_env("PSModulePath", "");
     }
+
+    // pass executable path to python
+    char *executable_path = GetProgramExecutableName();
+    if (IsWindows()) {
+        executable_path[0] = executable_path[1];
+        executable_path[1] = ':';
+        executable_path[2] = '/';
+    }
+    set_env("PYFUZE_EXECUTABLE_PATH", executable_path);
 
     for (size_t i = 0; i < config->count; i++) {
         char *key = config->items[i].key;
