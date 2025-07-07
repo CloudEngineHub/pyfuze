@@ -495,6 +495,5 @@ void uv_run(int gui, int argc, char *argv[]) {
         args[idx] = NULL;
 
         run_command_unix(args);
-        free(args);
     }
 }
