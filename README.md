@@ -11,7 +11,7 @@ This project is primarily built on top of [cosmopolitan](https://github.com/jart
 
 ## Packaging Modes
 
-| Mode                   | Standalone | Cross-Platform | Size       | Compatibility |
+| Mode                   | Offline | Cross-Platform | Size       | Compatibility |
 |------------------------|------------|----------------|------------|----------------|
 | **Bundle** *(default)* | ✅          | ❌             | 🔴 Large   | 🟢 High         |
 | **Online**             | ❌          | ✅             | 🟢 Small   | 🟢 High         |
@@ -166,6 +166,10 @@ pyfuze ./examples/complex \
   --env UV_PYTHON_INSTALL_MIRROR=<python-install-mirror-url> \
   --env UV_DEFAULT_INDEX=<pypi-mirror-url>
 ```
+
+## Note
+
+pyfuze does **NOT** perform any kind of code encryption or obfuscation.
 
 ## License
 
