@@ -463,15 +463,42 @@ void uv_sync(int frozen, int python) {
     }
 }
 
-void uv_run(int gui) {
+void uv_run(int gui, int argc, char *argv[]) {
     if (IsWindows()) {
         if (gui) {
-            snprintf(cmdline, sizeof(cmdline), "\"%s\" run --project %s --directory %s --gui-script %s", uv_path, config_unzip_path, src_dir, config_entry);
+            snprintf(cmdline, sizeof(cmdline),
+                     "\"%s\" run --project %s --directory %s --gui-script %s%s",
+                     uv_path, config_unzip_path, src_dir, config_entry);
         } else {
-            snprintf(cmdline, sizeof(cmdline), "\"%s\" run --project %s --directory %s --script %s", uv_path, config_unzip_path, src_dir, config_entry);
+            snprintf(cmdline, sizeof(cmdline),
+                     "\"%s\" run --project %s --directory %s --script %s%s",
+                     uv_path, config_unzip_path, src_dir, config_entry);
+        }
+        for (int i = 1; i < argc; i++) {
+            strcat(cmdline, " \"");
+            strcat(cmdline, argv[i]);
+            strcat(cmdline, "\"");
         }
         run_command_windows_normal(cmdline);
     } else {
-        RUN_COMMAND_UNIX(uv_path, "run", "--project", config_unzip_path, "--directory", src_dir, "--script", config_entry);
+        int base_argc = 7;
+        int total_argc = base_argc + argc - 1 + 1;
+        const char **args = calloc(total_argc, sizeof(char *));
+        int idx = 0;
+        args[idx++] = uv_path;
+        args[idx++] = "run";
+        args[idx++] = "--project";
+        args[idx++] = config_unzip_path;
+        args[idx++] = "--directory";
+        args[idx++] = src_dir;
+        args[idx++] = gui ? "--gui-script" : "--script";
+        args[idx++] = config_entry;
+        for (int i = 1; i < argc; ++i) {
+            args[idx++] = argv[i];
+        }
+        args[idx] = NULL;
+
+        run_command_unix(args);
+        free(args);
     }
 }

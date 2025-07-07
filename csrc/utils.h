@@ -1,8 +1,7 @@
 #pragma once
 
-#include "limits.h"
-
 #include "config.h"
+#include "limits.h"
 
 extern int attach_console;
 extern int alloc_console;
@@ -43,4 +42,4 @@ void install_python();
 void uv_init();
 void uv_add_dependencies();
 void uv_sync(int frozen, int python);
-void uv_run(int gui);
+void uv_run(int gui, int argc, char *argv[]);
