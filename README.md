@@ -167,6 +167,24 @@ pyfuze ./examples/complex \
   --env UV_DEFAULT_INDEX=<pypi-mirror-url>
 ```
 
+## Working Directory
+
+The default working directory is `<unzip-path>/src`.
+
+If you want to switch to the directory where the pyfuze executable resides, you can use the `PYFUZE_EXECUTABLE_PATH` environment variable:
+
+```python
+import os
+os.chdir(os.path.dirname(os.environ["PYFUZE_EXECUTABLE_PATH"]))
+```
+
+If you want to switch to the directory where the user invoked the executable, you can use the `PYFUZE_INVOKE_DIR` environment variable:
+
+```python
+import os
+os.chdir(os.environ["PYFUZE_INVOKE_DIR"])
+```
+
 ## Note
 
 pyfuze does **NOT** perform any kind of code encryption or obfuscation.

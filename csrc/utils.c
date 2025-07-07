@@ -143,8 +143,23 @@ Config *read_config() {
     return config;
 }
 
+// convert "/C/xxx/yyy/zzz" style path to "C:/xxx/yyy/zzz"
+void convert_to_windows_path(char *path) {
+    path[0] = path[1];
+    path[1] = ':';
+    path[2] = '/';
+}
+
 void init() {
     Config *config = read_config();
+
+    // pass invoke dir to python
+    char invoke_dir[PATH_MAX] = {0};
+    getcwd(invoke_dir, sizeof(invoke_dir));
+    if (IsWindows()) {
+        convert_to_windows_path(invoke_dir);
+    }
+    set_env("PYFUZE_INVOKE_DIR", invoke_dir);
 
     char *executable_dir = get_executable_dir();
     chdir(executable_dir);
@@ -165,9 +180,7 @@ void init() {
     // pass executable path to python
     char *executable_path = GetProgramExecutableName();
     if (IsWindows()) {
-        executable_path[0] = executable_path[1];
-        executable_path[1] = ':';
-        executable_path[2] = '/';
+        convert_to_windows_path(executable_path);
     }
     set_env("PYFUZE_EXECUTABLE_PATH", executable_path);
 
