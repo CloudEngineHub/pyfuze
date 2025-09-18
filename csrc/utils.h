@@ -42,4 +42,4 @@ void install_python();
 void uv_init();
 void uv_add_dependencies();
 void uv_sync(int frozen, int python);
-void uv_run(int gui, int argc, char *argv[]);
+int uv_run(int gui, int argc, char *argv[]);

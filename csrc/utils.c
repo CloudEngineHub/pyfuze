@@ -349,7 +349,7 @@ void unzip() {
     closedir(d);
 }
 
-void run_command_windows_utf16(char16_t *cmd, int no_stdin) {
+int run_command_windows_utf16(char16_t *cmd, int no_stdin) {
     struct NtStartupInfo si = {0};
     si.cb = sizeof(si);
     if (no_stdin) {
@@ -385,28 +385,47 @@ void run_command_windows_utf16(char16_t *cmd, int no_stdin) {
 
     WaitForSingleObject(pi.hProcess, 0xFFFFFFFF);
 
+    DWORD exit_code = 0;
+    if (!GetExitCodeProcess(pi.hProcess, &exit_code)) {
+        exit_code = 1;
+    }
+
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
+
+    return (int)exit_code;
 }
 
-void run_command_windows(char *cmd) {
+int run_command_windows(char *cmd) {
     char16_t *cmdline_utf16 = utf8to16(cmd, -1, 0);
-    run_command_windows_utf16(cmdline_utf16, 1);
+    int ret = run_command_windows_utf16(cmdline_utf16, 1);
     free(cmdline_utf16);
+    return ret;
 }
 
-void run_command_windows_normal(char *cmd) {
+int run_command_windows_normal(char *cmd) {
     char16_t *cmdline_utf16 = utf8to16(cmd, -1, 0);
-    run_command_windows_utf16(cmdline_utf16, 0);
+    int ret = run_command_windows_utf16(cmdline_utf16, 0);
     free(cmdline_utf16);
+    return ret;
 }
 
-void run_command_unix(const char *const argv[]) {
+int run_command_unix(const char *const argv[]) {
     pid_t pid;
     int status;
-    if (posix_spawnp(&pid, argv[0], NULL, NULL, (char *const *)argv, environ) != 0) exit_with_message("posix_spawnp at %s failed", argv[0]);
-    if (waitpid(pid, &status, 0) == -1) exit_with_message("waitpid at %s failed", argv[0]);
-    if (!WIFEXITED(status)) exit_with_message("command %s did not exit", argv[0]);
+    if (posix_spawnp(&pid, argv[0], NULL, NULL, (char *const *)argv, environ) != 0) {
+        exit_with_message("posix_spawnp at %s failed", argv[0]);
+    }
+    if (waitpid(pid, &status, 0) == -1) {
+        exit_with_message("waitpid at %s failed", argv[0]);
+    }
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    if (WIFSIGNALED(status)) {
+        return 128 + WTERMSIG(status);
+    }
+    return 1;
 }
 
 #define RUN_COMMAND_UNIX(...) \
@@ -485,7 +504,7 @@ void uv_sync(int frozen, int python) {
     }
 }
 
-void uv_run(int gui, int argc, char *argv[]) {
+int uv_run(int gui, int argc, char *argv[]) {
     if (IsWindows()) {
         if (gui) {
             snprintf(cmdline, sizeof(cmdline), "\"%s\" run --project %s --directory %s --gui-script %s", uv_path, config_unzip_path, src_dir, config_entry);
@@ -497,7 +516,7 @@ void uv_run(int gui, int argc, char *argv[]) {
             strcat(cmdline, argv[i]);
             strcat(cmdline, "\"");
         }
-        run_command_windows_normal(cmdline);
+        return run_command_windows_normal(cmdline);
     } else {
         int base_argc = 7;
         int total_argc = base_argc + argc - 1 + 1;
@@ -516,6 +535,6 @@ void uv_run(int gui, int argc, char *argv[]) {
         }
         args[idx] = NULL;
 
-        run_command_unix(args);
+        return run_command_unix(args);
     }
 }

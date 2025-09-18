@@ -22,6 +22,8 @@ PERFORMANCE OF THIS SOFTWARE.
 */
 
 #include "stdlib.h"
+#include "libc/dce.h"
+#include "libc/nt/runtime.h"
 #include "utils.h"
 
 // NOTE: Cosmopolitan linker script is hard-coded to change the
@@ -71,7 +73,10 @@ int main(int argc, char *argv[]) {
     if (alloc_console) close_console();
 
     // uv run
-    uv_run(config_win_gui, argc, argv);
-
-    return 0;
+    int ret = uv_run(config_win_gui, argc, argv);
+    if (IsWindows()) {
+        ExitProcess((unsigned int)ret);
+    } else {
+        return ret;
+    }
 }
